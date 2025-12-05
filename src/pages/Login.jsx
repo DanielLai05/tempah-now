@@ -37,6 +37,11 @@ export default function LoginPage() {
     }
   }
 
+  const handleShowModal = () => {
+    setShowPassword(false);
+    setModalShow(true);
+  }
+
   const handleClose = () => {
     setModalShow(false);
   }
@@ -118,7 +123,7 @@ export default function LoginPage() {
               <Button
                 variant='link'
                 className='p-1 text-success'
-                onClick={() => setModalShow(true)}
+                onClick={handleShowModal}
               >Sign-Up</Button>
               now</div>
 
