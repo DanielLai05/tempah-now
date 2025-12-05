@@ -1,13 +1,19 @@
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import LoginPage from "./pages/Login";
+import AuthProvider from "./components/AuthProvider";
+import Home from "./pages/Home";
 
-import './App.css'
-
-function App() {
-
+export default function App() {
   return (
-    <>
-      <h1>Restaurant  Reservation System</h1>
-    </>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="*" element={<Navigate to='/login' />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 
-export default App
