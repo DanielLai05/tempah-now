@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   Container,
   Row,
@@ -10,8 +10,10 @@ import {
   Spinner
 } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { AppContext } from '../context/AppContext';
 
 export default function HitPayCheckout() {
+  const { cart } = useContext(AppContext); // 从 context 获取购物车
   const [formData, setFormData] = useState({
     amount: '',
     currency: 'SGD',
@@ -31,6 +33,14 @@ export default function HitPayCheckout() {
     });
   };
 
+  // 计算总金额并填入 amount
+  useEffect(() => {
+    if (cart && cart.length > 0) {
+      const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      setFormData(prev => ({ ...prev, amount: totalAmount }));
+    }
+  }, [cart]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -38,14 +48,11 @@ export default function HitPayCheckout() {
     setPaymentUrl('');
 
     try {
-      // Replace with your Replit URL
       const BACKEND_URL = 'https://2f3ede99-a9b4-44b8-ad0f-6dc3bb2337d1-00-9zoktqd1e6s1.sisko.replit.dev:3001';
 
       const response = await fetch(`${BACKEND_URL}/api/create-payment`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
@@ -67,7 +74,7 @@ export default function HitPayCheckout() {
   const handleReset = () => {
     setPaymentUrl('');
     setFormData({
-      amount: '',
+      amount: cart.reduce((sum, item) => sum + item.price * item.quantity, 0) || '',
       currency: 'SGD',
       purpose: '',
       name: '',
@@ -111,26 +118,19 @@ export default function HitPayCheckout() {
                     Payment URL: <br />
                     <code className="text-wrap">{paymentUrl}</code>
                   </small>
-                  <Button
-                    variant="secondary"
-                    className="mt-3"
-                    onClick={handleReset}
-                  >
+                  <Button variant="secondary" className="mt-3" onClick={handleReset}>
                     Create Another Payment
                   </Button>
                 </Alert>
               ) : (
-                <div onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit}>
                   <Form.Group className="mb-3">
                     <Form.Label>Amount *</Form.Label>
                     <Form.Control
                       type="number"
                       name="amount"
                       value={formData.amount}
-                      onChange={handleChange}
-                      step="0.01"
-                      min="0.01"
-                      required
+                      readOnly // 金额不可更改
                       placeholder="10.00"
                     />
                   </Form.Group>
@@ -200,7 +200,7 @@ export default function HitPayCheckout() {
                     variant="primary"
                     size="lg"
                     className="w-100"
-                    onClick={handleSubmit}
+                    type="submit"
                     disabled={loading}
                   >
                     {loading ? (
@@ -219,7 +219,7 @@ export default function HitPayCheckout() {
                       'Create Payment Link'
                     )}
                   </Button>
-                </div>
+                </form>
               )}
             </Card.Body>
             <Card.Footer className="text-muted">
