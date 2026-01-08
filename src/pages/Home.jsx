@@ -57,7 +57,7 @@ const restaurants = [
   },
   {
     id: 4,
-    name: "168 板面",
+    name: "168 Ban Mian",
     cuisine: "Chinese",
     location: "Kepong",
     image: 'https://lh3.googleusercontent.com/gps-cs-s/AG0ilSxPgdA97GBJgiopGu5o1yzgtJbJsLMGOOeKvhJK0FJ-ydO7ZWbYn2wPwEC3M4Q6N_ciIyBa8Adsgho2_1gS1zOe9sQW8qFxh4usb2YgfdewPS0dzR18uB-hv60Q9AE8W7RTtHTC=s1360-w1360-h1020-rw',
@@ -73,7 +73,7 @@ const locations = ["All", "KL", "PJ", "Subang Jaya"];
 
 export default function Home() {
   const { currentUser } = useContext(AuthContext);
-  const { setSelectedRestaurant } = useContext(AppContext);
+  const { setSelectedRestaurant, cart, clearCart } = useContext(AppContext);
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
@@ -88,11 +88,32 @@ export default function Home() {
   const handleLogout = () => auth.signOut();
 
   const handleSelectRestaurant = (r) => {
+    // Check if cart has items from a different restaurant
+    if (cart.length > 0) {
+      // Get the restaurant ID from the first item in cart (format: "restaurantId-itemId")
+      const firstCartItem = cart[0];
+      const cartRestaurantId = firstCartItem.restaurantId || (firstCartItem.id ? parseInt(firstCartItem.id.split('-')[0]) : null);
+      
+      // If trying to select a different restaurant
+      if (cartRestaurantId && cartRestaurantId !== r.id) {
+        const confirmChange = window.confirm(
+          `You have items from another restaurant in your cart. Would you like to clear your cart and start a new order at ${r.name}?`
+        );
+        
+        if (confirmChange) {
+          clearCart();
+          setSelectedRestaurant(r);
+          navigate(`/restaurant-details/${r.id}`);
+        }
+        return; // Don't proceed if user cancels
+      }
+    }
+    
     setSelectedRestaurant(r);
     navigate(`/restaurant-details/${r.id}`);
   };
 
-  // 筛选逻辑
+  // Filter logic
   const filtered = restaurants.filter((r) => {
     const matchesSearch =
       r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -125,7 +146,7 @@ export default function Home() {
           </Button>
         </div>
 
-        {/* 推荐轮播 */}
+        {/* Recommended Carousel */}
         {recommended.length > 0 && (
           <Carousel className="mb-4 shadow-sm rounded">
             {recommended.map((r) => (
@@ -146,7 +167,7 @@ export default function Home() {
           </Carousel>
         )}
 
-        {/* 搜索 + 筛选 */}
+        {/* Search + Filter */}
         <Row className="mb-4 g-2 align-items-center">
           <Col md={4}>
             <InputGroup>
@@ -189,7 +210,7 @@ export default function Home() {
           </Col>
         </Row>
 
-        {/* 餐厅卡片 */}
+        {/* Restaurant Cards */}
         <Row xs={1} sm={2} md={3} lg={4} className="g-4">
           {filtered.map((r) => (
             <Col key={r.id}>
@@ -247,6 +268,21 @@ export default function Home() {
         {filtered.length === 0 && (
           <p className="text-center text-muted mt-5">No restaurants found.</p>
         )}
+
+        {/* Book Table Only Button */}
+        <div className="text-center mt-5">
+          <Button
+            style={{
+              background: "linear-gradient(90deg, #4CAF50, #45a049)",
+              border: "none",
+              padding: "12px 30px",
+              fontSize: "1.1rem",
+            }}
+            onClick={() => navigate("/table-reservation")}
+          >
+            Just Want to Book Table Only
+          </Button>
+        </div>
       </Container>
     </div>
   );

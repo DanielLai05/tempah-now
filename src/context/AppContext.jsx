@@ -18,6 +18,18 @@ export default function AppProvider({ children }) {
     });
   };
 
+  const removeFromCart = (itemId) => {
+    setCart(prev => prev.filter(i => i.id !== itemId));
+  };
+
+  const updateCartQuantity = (itemId, newQuantity) => {
+    if (newQuantity <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+    setCart(prev => prev.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i));
+  };
+
   const clearCart = () => setCart([]);
 
   return (
@@ -26,6 +38,8 @@ export default function AppProvider({ children }) {
       setSelectedRestaurant,
       cart,
       addToCart,
+      removeFromCart,
+      updateCartQuantity,
       clearCart
     }}>
       {children}

@@ -22,8 +22,10 @@ export default function AdminDashboard() {
   return (
     <Container className="py-5">
       <h2>Admin Dashboard</h2>
+      <p className="text-muted mb-4">Manage restaurants, view analytics, and manage staff.</p>
+      
       <Row className="my-4">
-        <Col md={6} className="mb-3">
+        <Col md={4} className="mb-3">
           <Card className="text-center shadow">
             <Card.Body>
               <Card.Title>Total Restaurants</Card.Title>
@@ -37,7 +39,7 @@ export default function AdminDashboard() {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={6} className="mb-3">
+        <Col md={4} className="mb-3">
           <Card className="text-center shadow">
             <Card.Body>
               <Card.Title>Total Orders</Card.Title>
@@ -47,6 +49,20 @@ export default function AdminDashboard() {
                 onClick={() => navigate("/admin/orders")}
               >
                 View Orders
+              </Button>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4} className="mb-3">
+          <Card className="text-center shadow" style={{ border: "2px solid #007bff" }}>
+            <Card.Body>
+              <Card.Title>Analytics</Card.Title>
+              <p className="text-muted">View detailed analytics and reports</p>
+              <Button
+                variant="info"
+                onClick={() => navigate("/admin/analytics")}
+              >
+                View Analytics
               </Button>
             </Card.Body>
           </Card>

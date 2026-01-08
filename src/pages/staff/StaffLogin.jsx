@@ -1,16 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container, Card, Form, Button, Alert } from "react-bootstrap";
+import { RoleContext } from "../../context/RoleContext";
+
+// Mock staff database (in production, this would be from a database)
+const staffDatabase = [
+  { username: "staff", password: "password123", role: "staff", restaurantId: 1 },
+  { username: "manager", password: "manager123", role: "manager", restaurantId: 1 },
+  { username: "staff2", password: "password123", role: "staff", restaurantId: 2 },
+  { username: "manager2", password: "manager123", role: "manager", restaurantId: 2 },
+];
 
 export default function StaffLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { setRole } = useContext(RoleContext);
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (username === "staff" && password === "password123") {
+    const user = staffDatabase.find(
+      (u) => u.username === username && u.password === password
+    );
+
+    if (user) {
+      // Set role based on user type
+      setRole(user.role, user.restaurantId);
       navigate("/staff/dashboard");
     } else {
       setError("Invalid username or password");

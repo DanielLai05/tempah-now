@@ -1,16 +1,25 @@
 import React, { useState } from "react";
 import { Container, Row, Col, Card, Badge, Button, Modal, Form } from "react-bootstrap";
 
+// Restaurant list (should be from database in production)
+const restaurants = [
+  { id: 1, name: "Sushi Hana" },
+  { id: 2, name: "La Pasta" },
+  { id: 3, name: "Spice Route" },
+  { id: 4, name: "168 Ban Mian" },
+];
+
 export default function AdminStaff() {
   const [staff, setStaff] = useState([
-    { id: 1, name: "Alice Tan", role: "Staff", status: "Active" },
-    { id: 2, name: "Bob Lim", role: "Staff", status: "Inactive" },
-    { id: 3, name: "Charlie Ong", role: "Staff", status: "Active" },
+    { id: 1, name: "Alice Tan", role: "Staff", restaurantId: 1, restaurantName: "Sushi Hana", status: "Active" },
+    { id: 2, name: "Bob Lim", role: "Staff", restaurantId: 2, restaurantName: "La Pasta", status: "Inactive" },
+    { id: 3, name: "Charlie Ong", role: "Manager", restaurantId: 1, restaurantName: "Sushi Hana", status: "Active" },
   ]);
 
   const [showModal, setShowModal] = useState(false);
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("Staff");
+  const [newStaffRestaurantId, setNewStaffRestaurantId] = useState(restaurants[0]?.id || "");
 
   const toggleStatus = (id) => {
     setStaff(prev =>
@@ -23,16 +32,20 @@ export default function AdminStaff() {
   };
 
   const handleAddStaff = () => {
-    if (newStaffName.trim() === "") return;
+    if (newStaffName.trim() === "" || !newStaffRestaurantId) return;
+    const selectedRestaurant = restaurants.find(r => r.id === parseInt(newStaffRestaurantId));
     const newStaff = {
       id: staff.length + 1,
       name: newStaffName.trim(),
       role: newStaffRole,
+      restaurantId: parseInt(newStaffRestaurantId),
+      restaurantName: selectedRestaurant?.name || "",
       status: "Active"
     };
     setStaff([...staff, newStaff]);
     setNewStaffName("");
     setNewStaffRole("Staff");
+    setNewStaffRestaurantId(restaurants[0]?.id || "");
     setShowModal(false);
   };
 
@@ -50,7 +63,8 @@ export default function AdminStaff() {
               <Card.Body>
                 <Card.Title>{s.name}</Card.Title>
                 <Card.Text>
-                  Role: {s.role} <br />
+                  Role: <Badge bg={s.role === "Manager" ? "primary" : "info"}>{s.role}</Badge> <br />
+                  Restaurant: <strong>{s.restaurantName}</strong> <br />
                   Status:{" "}
                   <Badge bg={s.status === "Active" ? "success" : "secondary"}>
                     {s.status}
@@ -83,7 +97,7 @@ export default function AdminStaff() {
               placeholder="Enter staff name"
             />
           </Form.Group>
-          <Form.Group>
+          <Form.Group className="mb-2">
             <Form.Label>Role</Form.Label>
             <Form.Select
               value={newStaffRole}
@@ -91,6 +105,18 @@ export default function AdminStaff() {
             >
               <option value="Staff">Staff</option>
               <option value="Manager">Manager</option>
+            </Form.Select>
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>Restaurant</Form.Label>
+            <Form.Select
+              value={newStaffRestaurantId}
+              onChange={(e) => setNewStaffRestaurantId(e.target.value)}
+              required
+            >
+              {restaurants.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
             </Form.Select>
           </Form.Group>
         </Modal.Body>

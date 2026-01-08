@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/Login";
 import AuthProvider from "./components/AuthProvider";
 import AppProvider from "./context/AppContext.jsx";
+import RoleProvider from "./context/RoleContext.jsx";
 import Home from "./pages/Home";
 import HitPayCheckout from "./pages/HitPayCheckout";
 import RestaurantDetails from "./pages/RestaurantDetails";
@@ -23,6 +24,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminRestaurants from "./pages/admin/AdminRestaurants";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminStaff from "./pages/admin/AdminStaff";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -30,7 +33,8 @@ export default function App() {
   return (
     <AppProvider>
       <AuthProvider>
-        <BrowserRouter>
+        <RoleProvider>
+          <BrowserRouter>
           <Routes>
             {/* Customer Pages */}
             <Route path="/login" element={<LoginPage />} />
@@ -54,11 +58,20 @@ export default function App() {
             <Route path="/admin/restaurants" element={<AdminRestaurants />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/staff" element={<AdminStaff />} />
+            <Route 
+              path="/admin/analytics" 
+              element={
+                <ProtectedRoute requireManager={true}>
+                  <AdminAnalytics />
+                </ProtectedRoute>
+              } 
+            />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/home" />} />
           </Routes>
         </BrowserRouter>
+        </RoleProvider>
       </AuthProvider>
     </AppProvider>
   );

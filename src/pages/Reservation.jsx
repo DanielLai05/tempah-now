@@ -1,6 +1,7 @@
 // Reservation.jsx
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { Container, Form, Button, Card, Row, Col, Badge } from "react-bootstrap";
 
 export default function Reservation() {
   const location = useLocation();
@@ -9,68 +10,150 @@ export default function Reservation() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [partySize, setPartySize] = useState(table?.seats || 1);
+  const [seatNumber, setSeatNumber] = useState(table?.seatNumber || "");
 
   if (!restaurant || !table) {
     return (
-      <div className="my-5 text-center">
+      <Container className="my-5 text-center">
         <p>Please select a restaurant and table first.</p>
-        <button className="btn btn-primary" onClick={() => navigate("/home")}>
-          Back to Home
-        </button>
-      </div>
+        <Button
+          style={{ background: "linear-gradient(90deg, #FF7E5F, #FEB47B)", border: "none" }}
+          onClick={() => navigate("/table-reservation")}
+        >
+          Back to Table Selection
+        </Button>
+      </Container>
     );
   }
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const reservationDetails = {
+      restaurant: restaurant.name,
+      table: table.name,
+      seatNumber: seatNumber,
+      date,
+      time,
+      partySize,
+      hasOrder: cart.length > 0,
+    };
+    
     alert(
-      `Reservation confirmed for ${partySize} people at ${restaurant.name} on ${date} ${time}`
+      `Reservation confirmed!\n` +
+      `Restaurant: ${restaurant.name}\n` +
+      `Table: ${table.name}\n` +
+      `Seat Number: ${seatNumber}\n` +
+      `Date: ${date}\n` +
+      `Time: ${time}\n` +
+      `Party Size: ${partySize} people\n` +
+      `Order: ${cart.length > 0 ? "Yes" : "No"}`
     );
     navigate("/home");
   };
 
   const today = new Date().toISOString().split("T")[0];
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
-    <div className="container my-5">
-      <h3>Reservation at {restaurant.name}</h3>
-      <p>Table: {table.name}</p>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label>Date</label>
-          <input
-            type="date"
-            min={today}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            required
-            className="form-control"
-          />
-        </div>
-        <div className="mb-3">
-          <label>Time</label>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            required
-            className="form-control"
-          />
-        </div>
-        <div className="mb-3">
-          <label>Party Size</label>
-          <input
-            type="number"
-            min={1}
-            value={partySize}
-            onChange={(e) => setPartySize(e.target.value)}
-            className="form-control"
-          />
-        </div>
-        <button type="submit" className="btn btn-success">
-          Confirm Reservation
-        </button>
-      </form>
-    </div>
+    <Container className="my-5">
+      <h3 className="mb-4">Reservation at {restaurant.name}</h3>
+      
+      <Row>
+        <Col md={8}>
+          <Card className="mb-4">
+            <Card.Body>
+              <Card.Title>Reservation Details</Card.Title>
+              <p><strong>Table:</strong> {table.name}</p>
+              <p><strong>Seat Number:</strong> {seatNumber}</p>
+              <p><strong>Max Seats:</strong> {table.seats}</p>
+            </Card.Body>
+          </Card>
+
+          <Form onSubmit={handleSubmit}>
+            <Form.Group className="mb-3">
+              <Form.Label>Date</Form.Label>
+              <Form.Control
+                type="date"
+                min={today}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Time</Form.Label>
+              <Form.Control
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                required
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Party Size</Form.Label>
+              <Form.Control
+                type="number"
+                min={1}
+                max={table.seats}
+                value={partySize}
+                onChange={(e) => setPartySize(e.target.value)}
+                required
+              />
+              <Form.Text className="text-muted">
+                Maximum {table.seats} seats available
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Seat Number</Form.Label>
+              <Form.Control
+                type="text"
+                value={seatNumber}
+                onChange={(e) => setSeatNumber(e.target.value)}
+                placeholder="Enter seat number (e.g., A1, B2)"
+                required
+              />
+            </Form.Group>
+
+            <Button
+              type="submit"
+              style={{
+                background: "linear-gradient(90deg, #FF7E5F, #FEB47B)",
+                border: "none",
+              }}
+            >
+              Confirm Reservation
+            </Button>
+          </Form>
+        </Col>
+
+        <Col md={4}>
+          {cart.length > 0 && (
+            <Card>
+              <Card.Header>
+                <Card.Title className="mb-0">Order Summary</Card.Title>
+              </Card.Header>
+              <Card.Body>
+                {cart.map((item, idx) => (
+                  <div key={idx} className="mb-2">
+                    <div className="d-flex justify-content-between">
+                      <span>{item.name} x {item.quantity}</span>
+                      <span>RM {(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
+                <hr />
+                <div className="d-flex justify-content-between fw-bold">
+                  <span>Subtotal:</span>
+                  <span>RM {subtotal.toFixed(2)}</span>
+                </div>
+              </Card.Body>
+            </Card>
+          )}
+        </Col>
+      </Row>
+    </Container>
   );
 }
