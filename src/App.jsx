@@ -9,6 +9,7 @@ import HitPayCheckout from "./pages/HitPayCheckout";
 import RestaurantDetails from "./pages/RestaurantDetails";
 import ShoppingCart from "./pages/ShoppingCart";
 import Reservation from "./pages/Reservation";
+import PaymentMethod from "./pages/PaymentMethod";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import VisualTableReservation from "./pages/VisualTableReservation.jsx";
 
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/restaurant-details/:id" element={<RestaurantDetails />} />
             <Route path="/cart" element={<ShoppingCart />} />
             <Route path="/reservation" element={<Reservation />} />
+            <Route path="/payment-method" element={<PaymentMethod />} />
             <Route path="/payment" element={<HitPayCheckout />} />
             <Route path="/order-confirmation" element={<OrderConfirmation />} />
             <Route path="/table-reservation" element={<VisualTableReservation />} />

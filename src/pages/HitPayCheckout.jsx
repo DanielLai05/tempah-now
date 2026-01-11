@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Container,
   Row,
@@ -11,16 +12,25 @@ import {
 } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { AppContext } from '../context/AppContext';
+import Navbar from '../components/Navbar';
+import { formatPrice } from '../utils/formatters';
 
 export default function HitPayCheckout() {
-  const { cart } = useContext(AppContext); 
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { cart: contextCart } = useContext(AppContext);
+  
+  // Get data from location state (passed from PaymentMethod)
+  const { reservation, cart: stateCart = [], restaurant, customer = {}, subtotal } = location.state || {};
+  const cart = stateCart.length > 0 ? stateCart : contextCart;
+  
   const [formData, setFormData] = useState({
     amount: '',
-    currency: 'SGD',
+    currency: 'MYR',
     purpose: '',
-    name: '',
-    email: '',
-    phone: ''
+    name: customer.name || '',
+    email: customer.email || '',
+    phone: customer.phone || ''
   });
   const [loading, setLoading] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState('');
@@ -34,11 +44,25 @@ export default function HitPayCheckout() {
   };
 
   useEffect(() => {
-    if (cart && cart.length > 0) {
-      const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      setFormData(prev => ({ ...prev, amount: totalAmount }));
-    }
-  }, [cart]);
+    // Calculate amount from cart or use subtotal from state
+    const totalAmount = subtotal || (cart && cart.length > 0 
+      ? cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+      : 0);
+    
+    // Set purpose based on order
+    const purpose = cart.length > 0 
+      ? `Restaurant order - ${restaurant?.name || 'Restaurant'}`
+      : `Table reservation - ${restaurant?.name || 'Restaurant'}`;
+    
+    setFormData(prev => ({ 
+      ...prev, 
+      amount: totalAmount,
+      purpose: purpose,
+      name: customer.name || prev.name,
+      email: customer.email || prev.email,
+      phone: customer.phone || prev.phone
+    }));
+  }, [cart, subtotal, restaurant, customer]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,6 +83,16 @@ export default function HitPayCheckout() {
 
       if (response.ok) {
         setPaymentUrl(data.url);
+        // Store payment info for confirmation page
+        sessionStorage.setItem('paymentInfo', JSON.stringify({
+          paymentUrl: data.url,
+          reservation,
+          cart,
+          restaurant,
+          customer: formData,
+          subtotal: formData.amount,
+          paymentMethod: 'gateway'
+        }));
       } else {
         setError(data.error || 'Failed to create payment');
       }
@@ -82,17 +116,49 @@ export default function HitPayCheckout() {
     });
   };
 
-  const currencies = ['SGD', 'USD', 'MYR', 'EUR', 'GBP'];
+  const currencies = ['MYR', 'SGD', 'USD', 'EUR', 'GBP'];
+  const totalAmount = subtotal || (cart && cart.length > 0 
+    ? cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    : 0);
 
   return (
-    <Container className="py-5">
+    <>
+      <Navbar />
+      <Container className="py-5">
       <Row className="justify-content-center">
         <Col md={8}>
           <Card className="shadow">
             <Card.Header className="bg-primary text-white">
-              <h3 className="mb-0">HitPay Sandbox Payment</h3>
+              <h3 className="mb-0">Secure Online Payment</h3>
             </Card.Header>
             <Card.Body>
+              {/* Order Summary */}
+              {(cart.length > 0 || reservation) && (
+                <div className="mb-4 p-3 bg-light rounded">
+                  {cart.length > 0 && (
+                    <>
+                      <h5 className="mb-3">Order Summary</h5>
+                      {cart.map((item, idx) => (
+                        <div key={idx} className="d-flex justify-content-between mb-2">
+                          <span>{item.name} x {item.quantity}</span>
+                          <span>{formatPrice(item.price * item.quantity)}</span>
+                        </div>
+                      ))}
+                      <hr />
+                    </>
+                  )}
+                  {reservation && (
+                    <div className="mb-2">
+                      <p className="mb-1"><strong>Reservation:</strong> {reservation.restaurant || restaurant?.name}</p>
+                      <p className="mb-1"><strong>Date:</strong> {reservation.date} at {reservation.time}</p>
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between fw-bold fs-5 mt-3">
+                    <span>Total Amount:</span>
+                    <span className="text-primary">{formatPrice(totalAmount)}</span>
+                  </div>
+                </div>
+              )}
               {error && (
                 <Alert variant="danger" dismissible onClose={() => setError('')}>
                   {error}
@@ -102,24 +168,45 @@ export default function HitPayCheckout() {
               {paymentUrl ? (
                 <Alert variant="success">
                   <Alert.Heading>Payment Link Created!</Alert.Heading>
-                  <p className="mb-2">Click the link below to proceed with payment:</p>
+                  <p className="mb-2">Click the button below to proceed with payment:</p>
                   <Button
                     variant="success"
                     size="lg"
+                    className="w-100 mb-3"
                     href={paymentUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      // After payment, user will be redirected back
+                      // We'll handle the redirect in a callback or check sessionStorage
+                    }}
                   >
-                    Pay Now
+                    Pay Now - {formatPrice(totalAmount)}
                   </Button>
+                  <div className="text-center">
+                    <Button 
+                      variant="outline-secondary" 
+                      onClick={() => {
+                        // Navigate to confirmation if payment was completed
+                        const paymentInfo = sessionStorage.getItem('paymentInfo');
+                        if (paymentInfo) {
+                          const info = JSON.parse(paymentInfo);
+                          navigate("/order-confirmation", { 
+                            state: {
+                              ...info,
+                              paymentStatus: 'pending'
+                            }
+                          });
+                        }
+                      }}
+                    >
+                      I've Completed Payment
+                    </Button>
+                  </div>
                   <hr />
                   <small className="text-muted d-block mt-2">
-                    Payment URL: <br />
-                    <code className="text-wrap">{paymentUrl}</code>
+                    <strong>Note:</strong> After completing payment, click "I've Completed Payment" to confirm your order.
                   </small>
-                  <Button variant="secondary" className="mt-3" onClick={handleReset}>
-                    Create Another Payment
-                  </Button>
                 </Alert>
               ) : (
                 <form onSubmit={handleSubmit}>
@@ -230,6 +317,7 @@ export default function HitPayCheckout() {
           </Card>
         </Col>
       </Row>
-    </Container>
+      </Container>
+    </>
   );
 }

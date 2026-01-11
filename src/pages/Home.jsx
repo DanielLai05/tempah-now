@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context";
 import { AppContext } from "../context/AppContext.jsx";
 import { auth } from "../firebase";
+import Navbar from "../components/Navbar";
+import { useConfirmDialog } from "../components/ConfirmDialog";
+import { formatPrice } from "../utils/formatters";
 
 import {
   Container,
@@ -75,6 +78,7 @@ export default function Home() {
   const { currentUser } = useContext(AuthContext);
   const { setSelectedRestaurant, cart, clearCart } = useContext(AppContext);
   const navigate = useNavigate();
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
 
   const [search, setSearch] = useState("");
   const [selectedCuisine, setSelectedCuisine] = useState("All");
@@ -85,9 +89,7 @@ export default function Home() {
     if (!currentUser) navigate("/login");
   }, [currentUser, navigate]);
 
-  const handleLogout = () => auth.signOut();
-
-  const handleSelectRestaurant = (r) => {
+  const handleSelectRestaurant = async (r) => {
     // Check if cart has items from a different restaurant
     if (cart.length > 0) {
       // Get the restaurant ID from the first item in cart (format: "restaurantId-itemId")
@@ -96,11 +98,15 @@ export default function Home() {
       
       // If trying to select a different restaurant
       if (cartRestaurantId && cartRestaurantId !== r.id) {
-        const confirmChange = window.confirm(
-          `You have items from another restaurant in your cart. Would you like to clear your cart and start a new order at ${r.name}?`
-        );
+        const confirmed = await confirm({
+          title: "Different Restaurant",
+          message: `You have items from another restaurant in your cart. Would you like to clear your cart and start a new order at ${r.name}?`,
+          confirmText: "Clear & Continue",
+          cancelText: "Cancel",
+          variant: "warning"
+        });
         
-        if (confirmChange) {
+        if (confirmed) {
           clearCart();
           setSelectedRestaurant(r);
           navigate(`/restaurant-details/${r.id}`);
@@ -132,18 +138,12 @@ export default function Home() {
 
   return (
     <div style={{ backgroundColor: "#F1F3F6", minHeight: "100vh" }}>
+      <Navbar />
+      <ConfirmDialogComponent />
       <Container className="py-5">
-        <div className="d-flex justify-content-between align-items-center mb-4">
+        <div className="mb-4">
           <h1 className="fw-bold">Discover Restaurants</h1>
-          <Button
-            style={{
-              background: "linear-gradient(90deg, #FF7E5F, #FEB47B)",
-              border: "none",
-            }}
-            onClick={handleLogout}
-          >
-            Logout
-          </Button>
+          <p className="text-muted">Find your perfect dining experience</p>
         </div>
 
         {/* Recommended Carousel */}
@@ -200,7 +200,7 @@ export default function Home() {
             </Form.Select>
           </Col>
           <Col md={4}>
-            <Form.Label>Price Range: ${priceRange[0]} - ${priceRange[1]}</Form.Label>
+            <Form.Label>Price Range: {formatPrice(priceRange[0])} - {formatPrice(priceRange[1])}</Form.Label>
             <Form.Range
               min={0}
               max={100}
@@ -268,21 +268,6 @@ export default function Home() {
         {filtered.length === 0 && (
           <p className="text-center text-muted mt-5">No restaurants found.</p>
         )}
-
-        {/* Book Table Only Button */}
-        <div className="text-center mt-5">
-          <Button
-            style={{
-              background: "linear-gradient(90deg, #4CAF50, #45a049)",
-              border: "none",
-              padding: "12px 30px",
-              fontSize: "1.1rem",
-            }}
-            onClick={() => navigate("/table-reservation")}
-          >
-            Just Want to Book Table Only
-          </Button>
-        </div>
       </Container>
     </div>
   );
