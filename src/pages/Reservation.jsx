@@ -80,28 +80,40 @@ export default function Reservation() {
   useEffect(() => {
     const fetchBookedTables = async () => {
       if (!selectedRestaurant || !date || !time) {
+        console.log('🚫 没有餐厅/日期/时间，跳过检查');
         setBookedTables([]);
         return;
       }
 
+      console.log('🔍 检查已预订桌子:', {
+        restaurant_id: selectedRestaurant.id,
+        date: date,
+        time: time
+      });
+
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/reservations/check?restaurant_id=${selectedRestaurant.id}&date=${date}&time=${time}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const url = `${apiUrl}/api/reservations/check?restaurant_id=${selectedRestaurant.id}&date=${date}&time=${time}`;
+        console.log('📡 调用 API:', url);
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
-        );
+        });
+
+        console.log('📬 API 响应状态:', response.status);
 
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ 已预订的桌子ID:', data.booked_table_ids);
           setBookedTables(data.booked_table_ids || []);
         } else {
+          console.warn('⚠️ API 返回错误状态:', response.status);
           setBookedTables([]);
         }
       } catch (error) {
-        console.error('Error fetching booked tables:', error);
+        console.error('❌ 获取已预订桌子失败:', error);
         setBookedTables([]);
       }
     };
@@ -383,6 +395,11 @@ export default function Reservation() {
                 <p className="text-muted mb-3">
                   Party Size: <strong>{pax}</strong> guests - Tables with fewer seats are disabled
                 </p>
+                
+                {/* Debug info - will be removed later */}
+                <Alert variant="info" className="mb-3" style={{ fontSize: '0.85rem' }}>
+                  <strong>Debug Info:</strong> Booked tables: {bookedTables.length > 0 ? bookedTables.join(', ') || 'none' : 'loading...'}
+                </Alert>
 
                 <div style={{
                   display: "flex",

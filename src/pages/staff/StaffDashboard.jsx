@@ -1,51 +1,86 @@
 // StaffDashboard.jsx
-import React, { useContext } from "react";
-import { Container, Row, Col, Card, Button, ListGroup, Badge } from "react-bootstrap";
+import React, { useContext, useState, useEffect } from "react";
+import { Container, Row, Col, Card, Button, ListGroup, Badge, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { RoleContext } from "../../context/RoleContext";
-
-// Restaurant list (should match with AdminStaff)
-const restaurants = [
-  { id: 1, name: "Sushi Hana" },
-  { id: 2, name: "La Pasta" },
-  { id: 3, name: "Spice Route" },
-  { id: 4, name: "168 Ban Mian" },
-];
+import { staffAPI } from "../../services/api";
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const { userRole, isManager, clearRole, userRestaurantId } = useContext(RoleContext);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [recentReservations, setRecentReservations] = useState([]);
 
-  // Get restaurant name from ID
-  const restaurantName = userRestaurantId 
-    ? restaurants.find(r => r.id === userRestaurantId)?.name || "Unknown Restaurant"
-    : "No Restaurant Assigned";
+  // Fetch dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch stats
+      const statsData = await staffAPI.getStats();
+      setStats(statsData);
+      
+      // Fetch recent reservations
+      const reservationsData = await staffAPI.getReservations();
+      setRecentReservations(reservationsData.slice(0, 5)); // Take first 5
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Staff can only view bookings/reservations, not orders or analytics
-  // Filter reservations by restaurant if userRestaurantId is set
-  const allReservations = [
-    { id: 1, customer: "Alice", restaurant: "Sushi Hana", restaurantId: 1, date: "2025-12-22", time: "18:00", partySize: 4, seatNumber: "A1", status: "Confirmed" },
-    { id: 2, customer: "Bob", restaurant: "La Pasta", restaurantId: 2, date: "2025-12-22", time: "19:00", partySize: 2, seatNumber: "B1", status: "Pending" },
-    { id: 3, customer: "Charlie", restaurant: "Sushi Hana", restaurantId: 1, date: "2025-12-22", time: "20:00", partySize: 6, seatNumber: "B2", status: "Confirmed" },
-  ];
+  useEffect(() => {
+    fetchDashboardData();
+  }, [userRestaurantId]);
 
-  // Filter reservations by restaurant if userRestaurantId is set
-  const todayReservations = userRestaurantId
-    ? allReservations.filter(r => r.restaurantId === userRestaurantId)
-    : allReservations;
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '-';
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      const h = parseInt(hours);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${minutes} ${ampm}`;
+    } catch {
+      return timeStr;
+    }
+  };
 
   const statusBadge = (status) => {
     switch (status) {
-      case "Pending":
-        return <Badge bg="warning">{status}</Badge>;
-      case "Confirmed":
-        return <Badge bg="success">{status}</Badge>;
-      case "Completed":
-        return <Badge bg="secondary">{status}</Badge>;
+      case "pending":
+        return <Badge bg="warning">Pending</Badge>;
+      case "confirmed":
+        return <Badge bg="success">Confirmed</Badge>;
+      case "completed":
+        return <Badge bg="secondary">Completed</Badge>;
+      case "cancelled":
+        return <Badge bg="danger">Cancelled</Badge>;
       default:
         return <Badge bg="light">{status}</Badge>;
     }
   };
+
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-3">Loading dashboard...</p>
+      </Container>
+    );
+  }
 
   return (
     <Container className="my-4">
@@ -56,9 +91,6 @@ export default function StaffDashboard() {
           </h2>
           <div className="d-flex align-items-center gap-2">
             <p className="text-muted mb-0">
-              Restaurant: <Badge bg="primary">{restaurantName}</Badge>
-            </p>
-            <p className="text-muted mb-0">
               Role: <Badge bg={isManager ? "success" : "info"}>{userRole}</Badge>
             </p>
           </div>
@@ -67,6 +99,7 @@ export default function StaffDashboard() {
           variant="outline-secondary" 
           size="sm" 
           onClick={() => {
+            localStorage.removeItem('staffToken');
             clearRole();
             navigate("/staff/login");
           }}
@@ -74,10 +107,10 @@ export default function StaffDashboard() {
           Logout
         </Button>
       </div>
-      
+
       {isManager && (
         <div className="alert alert-info mb-4">
-          <strong>Manager Access:</strong> You can view analytics and manage all bookings.
+          <strong>Manager Access:</strong> You have full access to manage orders and reservations.
           <Button 
             variant="link" 
             className="p-0 ms-2" 
@@ -87,54 +120,123 @@ export default function StaffDashboard() {
           </Button>
         </div>
       )}
-      
-      <p className="text-muted mb-4">
-        {isManager 
-          ? "You can view analytics and manage bookings/reservations." 
-          : "You can only view and manage bookings/reservations for your restaurant."}
-      </p>
+
+      {/* Stats Cards */}
+      <Row className="g-4 mb-4">
+        <Col md={3}>
+          <Card className="shadow-sm h-100">
+            <Card.Body className="text-center">
+              <Card.Title className="display-6 text-primary">
+                {stats?.todayReservations || 0}
+              </Card.Title>
+              <Card.Text>Today's Reservations</Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="shadow-sm h-100 bg-warning-subtle">
+            <Card.Body className="text-center">
+              <Card.Title className="display-6 text-warning">
+                {stats?.pendingOrders || 0}
+              </Card.Title>
+              <Card.Text>Pending Orders</Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="shadow-sm h-100 bg-success-subtle">
+            <Card.Body className="text-center">
+              <Card.Title className="display-6 text-success">
+                {stats?.completedOrders || 0}
+              </Card.Title>
+              <Card.Text>Completed Orders</Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="shadow-sm h-100">
+            <Card.Body className="text-center">
+              <Card.Title className="display-6">
+                ${(stats?.totalRevenue || 0).toFixed(2)}
+              </Card.Title>
+              <Card.Text>Today's Revenue</Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
       <Row className="g-4">
-        {/* Reservations Summary Card */}
+        {/* Recent Reservations */}
         <Col md={6}>
-          <Card className="shadow-sm p-3">
-            <Card.Title>
-              Today's Reservations
-              {userRestaurantId && (
-                <small className="text-muted d-block mt-1">for {restaurantName}</small>
+          <Card className="shadow-sm h-100">
+            <Card.Header className="d-flex justify-content-between align-items-center">
+              <Card.Title className="mb-0">Recent Reservations</Card.Title>
+              <Button variant="link" size="sm" onClick={() => navigate("/staff/reservations")}>
+                View All
+              </Button>
+            </Card.Header>
+            <Card.Body>
+              {recentReservations.length === 0 ? (
+                <p className="text-muted text-center">No reservations yet</p>
+              ) : (
+                <ListGroup variant="flush">
+                  {recentReservations.map((r) => (
+                    <ListGroup.Item key={r.id} className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <div><strong>{r.customer_name || 'Unknown'}</strong></div>
+                        <small className="text-muted">
+                          {formatDate(r.reservation_date)} at {formatTime(r.reservation_time)} • {r.party_size} guests
+                        </small>
+                      </div>
+                      {statusBadge(r.status)}
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
               )}
-            </Card.Title>
-            <Card.Text className="display-6">{todayReservations.length}</Card.Text>
-            <Button variant="primary" className="w-100 mb-2" onClick={() => navigate("/staff/reservations")}>
-              Manage Reservations
-            </Button>
-            <ListGroup variant="flush">
-              {todayReservations.map((r) => (
-                <ListGroup.Item key={r.id} className="d-flex justify-content-between align-items-center">
-                  <div>
-                    <div><strong>{r.customer}</strong></div>
-                    <small className="text-muted">{r.restaurant} • {r.partySize} people • Seat {r.seatNumber}</small>
-                  </div>
-                  {statusBadge(r.status)}
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
+            </Card.Body>
           </Card>
         </Col>
 
-        {/* Quick Actions Card */}
+        {/* Quick Actions */}
         <Col md={6}>
-          <Card className="shadow-sm p-3">
-            <Card.Title>Quick Actions</Card.Title>
-            <Button variant="info" className="w-100 mb-2" onClick={() => navigate("/staff/reservations")}>
-              View All Reservations
-            </Button>
-            <Card.Text className="text-muted mt-3">
-              <small>
-                Note: Staff members can only view and manage bookings/reservations. 
-                Analytics and order management are restricted to managers.
-              </small>
-            </Card.Text>
+          <Card className="shadow-sm h-100">
+            <Card.Header>
+              <Card.Title className="mb-0">Quick Actions</Card.Title>
+            </Card.Header>
+            <Card.Body>
+              <Row className="g-2">
+                <Col xs={6}>
+                  <Button 
+                    variant="primary" 
+                    className="w-100 p-3"
+                    onClick={() => navigate("/staff/reservations")}
+                  >
+                    <i className="bi bi-calendar-check me-2"></i>
+                    Reservations
+                  </Button>
+                </Col>
+                <Col xs={6}>
+                  <Button 
+                    variant="info" 
+                    className="w-100 p-3"
+                    onClick={() => navigate("/staff/orders")}
+                  >
+                    <i className="bi bi-basket me-2"></i>
+                    Orders
+                  </Button>
+                </Col>
+              </Row>
+              
+              <Card.Text className="text-muted mt-4">
+                <small>
+                  <strong>Quick Guide:</strong><br />
+                  • View and manage reservations<br />
+                  • Update order status<br />
+                  • Confirm or cancel bookings<br />
+                  • Track daily revenue
+                </small>
+              </Card.Text>
+            </Card.Body>
           </Card>
         </Col>
       </Row>

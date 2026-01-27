@@ -164,6 +164,29 @@ export const orderAPI = {
 };
 
 // ============ STAFF API ============
+// Helper function for staff authenticated requests
+async function fetchStaffWithAuth(endpoint, options = {}) {
+  const token = localStorage.getItem('staffToken');
+
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    },
+  };
+
+  const response = await fetch(`${API_BASE}${endpoint}`, config);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(error.error || 'Request failed');
+  }
+
+  return response.json();
+}
+
 export const staffAPI = {
   login: (email, password) =>
     fetchWithoutAuth('/staff/login', {
@@ -171,26 +194,26 @@ export const staffAPI = {
       body: JSON.stringify({ email, password }),
     }),
 
-  getOrders: (staffId) =>
-    fetchWithAuth(`/staff/${staffId}/orders`),
+  getOrders: () =>
+    fetchStaffWithAuth('/staff/orders'),
 
-  getReservations: (staffId) =>
-    fetchWithAuth(`/staff/${staffId}/reservations`),
+  getReservations: () =>
+    fetchStaffWithAuth('/staff/reservations'),
 
-  confirmOrder: (orderId) =>
-    fetchWithAuth(`/staff/orders/${orderId}/confirm`, {
+  updateOrderStatus: (orderId, status) =>
+    fetchStaffWithAuth(`/staff/orders/${orderId}/status`, {
       method: 'PUT',
+      body: JSON.stringify({ status }),
     }),
 
-  completeOrder: (orderId) =>
-    fetchWithAuth(`/staff/orders/${orderId}/complete`, {
+  updateReservationStatus: (reservationId, status) =>
+    fetchStaffWithAuth(`/staff/reservations/${reservationId}/status`, {
       method: 'PUT',
+      body: JSON.stringify({ status }),
     }),
 
-  confirmReservation: (reservationId) =>
-    fetchWithAuth(`/staff/reservations/${reservationId}/confirm`, {
-      method: 'PUT',
-    }),
+  getStats: () =>
+    fetchStaffWithAuth('/staff/stats'),
 };
 
 // ============ ADMIN API ============
