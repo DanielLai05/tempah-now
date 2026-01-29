@@ -18,14 +18,16 @@ import StaffLogin from "./pages/staff/StaffLogin";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import StaffOrders from "./pages/staff/StaffOrders";
 import StaffReservations from "./pages/staff/StaffReservations";
+import StaffAnalytics from "./pages/staff/StaffAnalytics";
 
 // Admin Portal
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminRestaurants from "./pages/admin/AdminRestaurants";
 import AdminOrders from "./pages/admin/AdminOrders";
+import AdminReservations from "./pages/admin/AdminReservations";
 import AdminStaff from "./pages/admin/AdminStaff";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -53,21 +55,23 @@ export default function App() {
             <Route path="/staff/dashboard" element={<StaffDashboard />} />
             <Route path="/staff/orders" element={<StaffOrders />} />
             <Route path="/staff/reservations" element={<StaffReservations />} />
+            <Route 
+              path="/staff/analytics" 
+              element={
+                <ProtectedRoute requireManager={true}>
+                  <StaffAnalytics />
+                </ProtectedRoute>
+              } 
+            />
 
             {/* Admin Portal */}
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/analytics" element={<AdminAnalytics />} />
             <Route path="/admin/restaurants" element={<AdminRestaurants />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/reservations" element={<AdminReservations />} />
             <Route path="/admin/staff" element={<AdminStaff />} />
-            <Route 
-              path="/admin/analytics" 
-              element={
-                <ProtectedRoute requireManager={true}>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              } 
-            />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/home" />} />

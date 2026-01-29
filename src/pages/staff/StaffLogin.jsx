@@ -28,6 +28,7 @@ export default function StaffLogin() {
         // Set role context
         setRole(result.staff.role, result.staff.restaurant_id);
         
+        // Navigate to dashboard
         navigate("/staff/dashboard");
       }
     } catch (err) {
@@ -40,15 +41,15 @@ export default function StaffLogin() {
 
   return (
     <Container className="py-5">
-      <Card className="shadow mx-auto" style={{ maxWidth: "400px" }}>
+      <Card className="shadow mx-auto" style={{ maxWidth: "450px" }}>
         <Card.Header 
           style={{ 
-            background: "linear-gradient(90deg, #FF7E5F, #FEB47B)", 
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", 
             color: "white",
             border: "none"
           }}
         >
-          <h3 className="mb-0">Staff Login</h3>
+          <h3 className="mb-0">👔 Staff Login</h3>
         </Card.Header>
         <Card.Body>
           {error && <Alert variant="danger">{error}</Alert>}
@@ -79,7 +80,7 @@ export default function StaffLogin() {
               className="w-100"
               disabled={loading}
               style={{ 
-                background: "linear-gradient(90deg, #FF7E5F, #FEB47B)",
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 border: "none"
               }}
             >
@@ -95,11 +96,26 @@ export default function StaffLogin() {
           </Form>
           
           <div className="mt-4 p-3 bg-light rounded">
-            <small className="text-muted">
-              <strong>Demo Accounts:</strong><br />
-              Manager: manager@sushi.com / manager123<br />
-              Staff: staff@sushi.com / staff123
-            </small>
+            <h6 className="mb-2">Demo Accounts:</h6>
+            <div className="small">
+              <div className="mb-2">
+                <strong>Manager:</strong><br />
+                📧 manager@sushi.com<br />
+                🔑 manager123<br />
+                🏪 Restaurant: Sushi Hana
+              </div>
+              <div className="mb-2">
+                <strong>Staff:</strong><br />
+                📧 staff@sushi.com<br />
+                🔑 staff123<br />
+                🏪 Restaurant: Sushi Hana
+              </div>
+              <div>
+                <strong>Manager (La Pasta):</strong><br />
+                📧 manager@pasta.com<br />
+                🔑 manager123
+              </div>
+            </div>
           </div>
         </Card.Body>
       </Card>

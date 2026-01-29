@@ -4,8 +4,8 @@ import { Container, Card, Row, Col, Button, Badge, Spinner, Alert } from "react-
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { AuthContext } from "../context";
-import { reservationAPI, authAPI } from "../services/api";
-import { auth } from "../firebase";
+import { reservationAPI } from "../services/api";
+import { formatPrice } from "../utils/formatters";
 
 export default function MyReservations() {
   const { currentUser } = useContext(AuthContext);
@@ -15,7 +15,6 @@ export default function MyReservations() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // If not logged in, redirect to login
     if (!currentUser) {
       navigate("/login");
       return;
@@ -25,58 +24,11 @@ export default function MyReservations() {
       try {
         setLoading(true);
         setError(null);
-
-        // Get token or try to refresh it
-        let token = localStorage.getItem('token');
-
-        if (!token && auth.currentUser) {
-          try {
-            const loginResult = await authAPI.login(auth.currentUser.email);
-            if (loginResult.token) {
-              localStorage.setItem('token', loginResult.token);
-              token = loginResult.token;
-            }
-          } catch (loginError) {
-            if (loginError.message?.includes('User not found')) {
-              // Try to sync user
-              try {
-                await authAPI.syncUser({
-                  email: auth.currentUser.email,
-                  first_name: auth.currentUser.displayName?.split(' ')[0] || '',
-                  last_name: auth.currentUser.displayName?.split(' ')[1] || '',
-                  phone: ''
-                });
-                // Retry login
-                const retryResult = await authAPI.login(auth.currentUser.email);
-                if (retryResult.token) {
-                  localStorage.setItem('token', retryResult.token);
-                  token = retryResult.token;
-                }
-              } catch (syncError) {
-                console.error('Sync user failed:', syncError);
-              }
-            } else if (loginError.message?.includes('Access token required') || loginError.message?.includes('Invalid')) {
-              localStorage.removeItem('token');
-              navigate("/login");
-              return;
-            }
-          }
-        }
-
-        // Now fetch reservations
         const data = await reservationAPI.getUserReservations();
         setReservations(data || []);
       } catch (err) {
         console.error('Error fetching reservations:', err);
-
-        // Handle authentication errors
-        if (err.message?.includes('Access token required') || err.message?.includes('Invalid or expired token')) {
-          localStorage.removeItem('token');
-          navigate("/login");
-          return;
-        }
-
-        setError(err.message || 'Failed to load reservations. Please try again.');
+        setError('Failed to load reservations. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -104,11 +56,11 @@ export default function MyReservations() {
     if (!dateStr) return '-';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+      return date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
       });
     } catch {
       return dateStr;
@@ -127,13 +79,10 @@ export default function MyReservations() {
     return timeStr;
   };
 
+  // Get restaurant info from the reservation
   const getRestaurantName = (reservation) => {
     if (reservation.restaurant_name) return reservation.restaurant_name;
     return `Restaurant #${reservation.restaurant_id}`;
-  };
-
-  const handleBackToHome = () => {
-    navigate("/home");
   };
 
   if (loading) {
@@ -153,13 +102,12 @@ export default function MyReservations() {
       <Navbar />
       <Container className="my-5">
         <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="fw-bold mb-0">My Reservations</h2>
+          <h2 className="fw-bold">My Reservations</h2>
           <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={handleBackToHome}
+            style={{ background: "linear-gradient(90deg, #FF7E5F, #FEB47B)", border: "none" }}
+            onClick={() => navigate("/table-reservation")}
           >
-            ← Back to Home
+            New Reservation
           </Button>
         </div>
 
@@ -182,7 +130,7 @@ export default function MyReservations() {
               </p>
               <Button
                 style={{ background: "linear-gradient(90deg, #FF7E5F, #FEB47B)", border: "none" }}
-                onClick={() => navigate("/home")}
+                onClick={() => navigate("/table-reservation")}
               >
                 Make Your First Reservation
               </Button>

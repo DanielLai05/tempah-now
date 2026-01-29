@@ -38,12 +38,12 @@ export default function PaymentMethod() {
         month: 'short',
         day: 'numeric'
       });
-    } catch (error) {
+      } catch (error) {
       console.error('Date formatting error:', error);
       return dateStr;
-    }
-  };
-
+      }
+    };
+    
   // Helper to format time
   const formatTime = (timeStr) => {
     if (!timeStr) return '-';
@@ -105,22 +105,22 @@ export default function PaymentMethod() {
   const reservationInfo = getReservationInfo();
 
   const handlePaymentMethod = (method) => {
-    const orderData = {
-      reservation,
-      cart,
-      restaurant,
-      customer,
-      paymentMethod: method,
-      subtotal,
-    };
+      const orderData = {
+        reservation,
+        cart,
+        restaurant,
+        customer,
+        paymentMethod: method,
+        subtotal,
+      };
 
-    if (method === "counter") {
-      // Pay at counter - go directly to confirmation
-      navigate("/order-confirmation", { state: orderData });
-    } else if (method === "gateway") {
-      // Pay via gateway - go to payment gateway
-      navigate("/payment", { state: orderData });
-    }
+      if (method === "counter") {
+        // Pay at counter - go directly to confirmation
+        navigate("/order-confirmation", { state: orderData });
+      } else if (method === "gateway") {
+        // Pay via gateway - go to payment gateway
+        navigate("/payment", { state: orderData });
+      }
   };
 
   return (
@@ -182,7 +182,7 @@ export default function PaymentMethod() {
                 {/* Payment Methods */}
                 <div className="mb-4">
                   <h5 className="mb-4">Choose your payment method:</h5>
-
+                  
                   <Row className="g-3">
                     {/* Pay at Counter */}
                     <Col md={6}>

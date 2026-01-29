@@ -217,6 +217,36 @@ export const staffAPI = {
 };
 
 // ============ ADMIN API ============
+// Helper function for admin authenticated requests
+async function fetchAdminWithAuth(endpoint, options = {}) {
+  const token = localStorage.getItem('adminToken');
+
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    },
+  };
+
+  const response = await fetch(`${API_BASE}${endpoint}`, config);
+
+  if (!response.ok) {
+    let errorMessage = 'Request failed';
+    try {
+      const error = await response.json();
+      errorMessage = error.error || error.message || `HTTP ${response.status}`;
+    } catch (e) {
+      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    console.error(`API Error [${endpoint}]:`, errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  return response.json();
+}
+
 export const adminAPI = {
   login: (email, password) =>
     fetchWithoutAuth('/admin/login', {
@@ -224,15 +254,70 @@ export const adminAPI = {
       body: JSON.stringify({ email, password }),
     }),
 
-  getStats: () => fetchWithAuth('/admin/stats'),
+  getStats: () => fetchAdminWithAuth('/admin/stats'),
 
-  getAllOrders: () => fetchWithAuth('/admin/orders'),
+  getAllOrders: (status) => {
+    const url = status ? `/admin/orders?status=${status}` : '/admin/orders';
+    return fetchAdminWithAuth(url);
+  },
 
-  getAllReservations: () => fetchWithAuth('/admin/reservations'),
+  getAllReservations: () => fetchAdminWithAuth('/admin/reservations'),
 
-  getAllRestaurants: () => fetchWithAuth('/admin/restaurants'),
+  // Restaurant management
+  getAllRestaurants: () => fetchAdminWithAuth('/admin/restaurants'),
 
-  getAllStaff: () => fetchWithAuth('/admin/staff'),
+  createRestaurant: (data) =>
+    fetchAdminWithAuth('/admin/restaurants', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateRestaurant: (id, data) =>
+    fetchAdminWithAuth(`/admin/restaurants/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteRestaurant: (id) =>
+    fetchAdminWithAuth(`/admin/restaurants/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Staff management
+  getAllStaff: () => fetchAdminWithAuth('/admin/staff'),
+
+  createStaff: (data) =>
+    fetchAdminWithAuth('/admin/staff', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateStaff: (id, data) =>
+    fetchAdminWithAuth(`/admin/staff/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteStaff: (id) =>
+    fetchAdminWithAuth(`/admin/staff/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Analytics
+  getAnalyticsOverview: (period = 'month') =>
+    fetchAdminWithAuth(`/admin/analytics/overview?period=${period}`),
+
+  getTopRestaurants: (period = 'month', limit = 10) =>
+    fetchAdminWithAuth(`/admin/analytics/top-restaurants?period=${period}&limit=${limit}`),
+
+  getPeakHours: (period = 'month') =>
+    fetchAdminWithAuth(`/admin/analytics/peak-hours?period=${period}`),
+
+  getRecentReservations: (limit = 20) =>
+    fetchAdminWithAuth(`/admin/analytics/recent-reservations?limit=${limit}`),
+
+  getRevenueByDay: (days = 30) =>
+    fetchAdminWithAuth(`/admin/analytics/revenue-by-day?days=${days}`),
 };
 
 // ============ PAYMENT API ============
