@@ -1,6 +1,6 @@
 // MyReservations.jsx
 import React, { useState, useEffect, useContext } from "react";
-import { Container, Card, Row, Col, Button, Badge, Spinner, Alert, Table } from "react-bootstrap";
+import { Container, Card, Row, Col, Button, Badge, Spinner, Alert, Table, Modal, Form } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { AuthContext } from "../context";
@@ -14,8 +14,20 @@ export default function MyReservations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedReservations, setExpandedReservations] = useState({});
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [selectedReservationId, setSelectedReservationId] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    // Wait for auth to be determined
+    if (currentUser === undefined) {
+      return; // Still loading
+    }
+    
+    setAuthLoading(false);
+    
     if (!currentUser) {
       navigate("/login");
       return;
@@ -81,6 +93,8 @@ export default function MyReservations() {
         return <Badge bg="info">Preparing</Badge>;
       case 'no-show':
         return <Badge bg="dark">No Show</Badge>;
+      case 'cancellation_requested':
+        return <Badge bg="warning" text="dark">Cancellation Requested</Badge>;
       default:
         return <Badge bg="secondary">{status}</Badge>;
     }
@@ -119,6 +133,75 @@ export default function MyReservations() {
       currency: 'USD'
     }).format(amount || 0);
   };
+
+  // Cancellation handlers
+  const handleOpenCancelModal = (reservationId) => {
+    setSelectedReservationId(reservationId);
+    setCancelReason("");
+    setShowCancelModal(true);
+  };
+
+  const handleCloseCancelModal = () => {
+    setShowCancelModal(false);
+    setSelectedReservationId(null);
+    setCancelReason("");
+  };
+
+  const handleRequestCancellation = async () => {
+    if (!selectedReservationId) return;
+    
+    try {
+      setActionLoading(true);
+      await reservationAPI.requestCancellation(selectedReservationId, cancelReason);
+      handleCloseCancelModal();
+      // Refresh data
+      const reservationsData = await reservationAPI.getUserReservations().catch(err => {
+        console.error('Error fetching reservations:', err);
+        return [];
+      });
+      setReservations(reservationsData || []);
+      alert('Cancellation request submitted successfully!');
+    } catch (err) {
+      console.error('Error requesting cancellation:', err);
+      alert(err.message || 'Failed to submit cancellation request');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleWithdrawCancellation = async (reservationId) => {
+    if (!confirm('Are you sure you want to withdraw your cancellation request?')) return;
+    
+    try {
+      setActionLoading(true);
+      await reservationAPI.cancelRequest(reservationId);
+      // Refresh data
+      const reservationsData = await reservationAPI.getUserReservations().catch(err => {
+        console.error('Error fetching reservations:', err);
+        return [];
+      });
+      setReservations(reservationsData || []);
+      alert('Cancellation request withdrawn!');
+    } catch (err) {
+      console.error('Error withdrawing cancellation:', err);
+      alert(err.message || 'Failed to withdraw cancellation request');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <>
+        <Navbar />
+        <Container className="my-5 text-center">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-3">Checking authentication...</p>
+        </Container>
+      </>
+    );
+  }
 
   if (loading) {
     return (
@@ -301,15 +384,46 @@ export default function MyReservations() {
                       )}
                     </Card.Body>
                     <Card.Footer className="bg-white">
+                      {/* Show cancellation request reason if applicable */}
+                      {reservation.cancellation_reason && (
+                        <Alert variant="warning" className="mb-2 py-2">
+                          <small>
+                            <strong>Cancellation Reason:</strong> {reservation.cancellation_reason}
+                          </small>
+                        </Alert>
+                      )}
+
+                      {/* Cancellation Requested - Show withdraw button */}
+                      {reservation.status === 'cancellation_requested' && (
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => handleWithdrawCancellation(reservation.id)}
+                          disabled={actionLoading}
+                        >
+                          Withdraw Cancellation Request
+                        </Button>
+                      )}
+
+                      {/* Pending - Show Cancel button */}
                       {reservation.status === 'pending' && (
                         <Button
                           variant="outline-danger"
                           size="sm"
-                          onClick={() => {
-                            alert('Cancel reservation feature coming soon!');
-                          }}
+                          onClick={() => handleOpenCancelModal(reservation.id)}
                         >
                           Cancel Reservation
+                        </Button>
+                      )}
+
+                      {/* Confirmed - Show Request Cancellation button */}
+                      {reservation.status === 'confirmed' && (
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleOpenCancelModal(reservation.id)}
+                        >
+                          Request Cancellation
                         </Button>
                       )}
                     </Card.Footer>
@@ -377,6 +491,41 @@ export default function MyReservations() {
           </div>
         )}
       </Container>
+
+      {/* Cancellation Request Modal */}
+      <Modal show={showCancelModal} onHide={handleCloseCancelModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>Request Cancellation</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group>
+            <Form.Label>Please provide a reason for cancellation:</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value.slice(0, 500))}
+              placeholder="Enter your reason..."
+              maxLength={500}
+            />
+            <Form.Text className="text-muted">
+              {cancelReason.length}/500 characters
+            </Form.Text>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseCancelModal}>
+            Back
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleRequestCancellation}
+            disabled={actionLoading}
+          >
+            {actionLoading ? 'Submitting...' : 'Submit Request'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 }

@@ -60,7 +60,7 @@ export default function StaffReservations() {
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error fetching reservations:', err);
-
+      
       if (err.message?.includes('token') || err.message?.includes('auth')) {
         clearRole();
         window.location.href = '/staff/login';
@@ -95,9 +95,18 @@ export default function StaffReservations() {
       confirmed: 'success',
       completed: 'secondary',
       cancelled: 'danger',
-      'no-show': 'dark'
+      'no-show': 'dark',
+      'cancellation_requested': 'warning'
     };
-    return <Badge bg={variants[status] || 'secondary'}>{status}</Badge>;
+    const labels = {
+      pending: 'Pending',
+      confirmed: 'Confirmed',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+      'no-show': 'No Show',
+      'cancellation_requested': 'cancellation requested'
+    };
+    return <Badge bg={variants[status] || 'secondary'}>{labels[status] || status}</Badge>;
   };
 
   const getOrderStatusBadge = (status) => {
@@ -118,6 +127,28 @@ export default function StaffReservations() {
     } catch (err) {
       console.error('Error updating reservation:', err);
       alert(err.message || "Failed to update reservation");
+    }
+  };
+
+  const handleApproveCancellation = async (reservationId) => {
+    if (!confirm('Are you sure you want to approve this cancellation request? The reservation will be cancelled.')) return;
+    try {
+      await staffAPI.approveCancellation(reservationId);
+      fetchReservations();
+    } catch (err) {
+      console.error('Error approving cancellation:', err);
+      alert(err.message || "Failed to approve cancellation");
+    }
+  };
+
+  const handleRejectCancellation = async (reservationId) => {
+    if (!confirm('Are you sure you want to reject this cancellation request? The reservation will be confirmed.')) return;
+    try {
+      await staffAPI.rejectCancellation(reservationId);
+      fetchReservations();
+    } catch (err) {
+      console.error('Error rejecting cancellation:', err);
+      alert(err.message || "Failed to reject cancellation");
     }
   };
 
@@ -201,7 +232,7 @@ export default function StaffReservations() {
       {/* Status Filter */}
       <div className="mb-4">
         <span className="me-2">Status:</span>
-        <Button
+        <Button 
           variant={statusFilter === "" ? "primary" : "outline-secondary"}
           size="sm"
           className="me-2"
@@ -209,7 +240,7 @@ export default function StaffReservations() {
         >
           All ({reservations.length})
         </Button>
-        <Button
+        <Button 
           variant={statusFilter === "pending" ? "primary" : "outline-secondary"}
           size="sm"
           className="me-2"
@@ -217,7 +248,7 @@ export default function StaffReservations() {
         >
           Pending ({reservations.filter(r => r.status === 'pending').length})
         </Button>
-        <Button
+        <Button 
           variant={statusFilter === "confirmed" ? "primary" : "outline-secondary"}
           size="sm"
           className="me-2"
@@ -226,6 +257,14 @@ export default function StaffReservations() {
           Confirmed ({reservations.filter(r => r.status === 'confirmed').length})
         </Button>
         <Button
+          variant={statusFilter === "cancellation_requested" ? "warning" : "outline-warning"}
+          size="sm"
+          className="me-2"
+          onClick={() => setStatusFilter("cancellation_requested")}
+        >
+          ⏳ Cancellation ({reservations.filter(r => r.status === 'cancellation_requested').length})
+        </Button>
+        <Button 
           variant={statusFilter === "completed" ? "primary" : "outline-secondary"}
           size="sm"
           className="me-2"
@@ -233,7 +272,7 @@ export default function StaffReservations() {
         >
           Completed ({reservations.filter(r => r.status === 'completed').length})
         </Button>
-        <Button
+        <Button 
           variant={statusFilter === "cancelled" ? "primary" : "outline-secondary"}
           size="sm"
           onClick={() => setStatusFilter("cancelled")}
@@ -326,79 +365,105 @@ export default function StaffReservations() {
                       {expandedRows[res.id] ? '▼' : '▶'}
                     </Button>
                   </td>
-                  <td>#{res.id}</td>
-                  <td>
-                    <div className="fw-semibold">{res.customer_name || 'Unknown'}</div>
-                    <small className="text-muted">{res.customer_email}</small>
-                  </td>
-                  <td>
-                    <small>{res.customer_phone || '-'}</small>
-                  </td>
-                  <td>{formatDate(res.reservation_date)}</td>
-                  <td>{formatTime(res.reservation_time)}</td>
-                  <td>{res.party_size} guests</td>
-                  <td>
-                    <Badge bg="secondary">{res.table_name || `Table ${res.table_id}`}</Badge>
-                  </td>
-                  <td>{getStatusBadge(res.status)}</td>
-                  <td>
-                    {res.status === 'pending' && (
+                <td>#{res.id}</td>
+                <td>
+                  <div className="fw-semibold">{res.customer_name || 'Unknown'}</div>
+                  <small className="text-muted">{res.customer_email}</small>
+                </td>
+                <td>
+                  <small>{res.customer_phone || '-'}</small>
+                </td>
+                <td>{formatDate(res.reservation_date)}</td>
+                <td>{formatTime(res.reservation_time)}</td>
+                <td>{res.party_size} guests</td>
+                <td>
+                  <Badge bg="secondary">{res.table_name || `Table ${res.table_id}`}</Badge>
+                </td>
+                <td>{getStatusBadge(res.status)}</td>
+                <td>
+                  {res.status === 'pending' && (
+                    <>
+                      <Button 
+                        variant="success" 
+                        size="sm" 
+                        className="me-1"
+                        onClick={() => handleUpdateStatus(res.id, 'confirmed')}
+                      >
+                        Confirm
+                      </Button>
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to cancel this reservation?')) {
+                            handleUpdateStatus(res.id, 'cancelled');
+                          }
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  )}
+                  {res.status === 'confirmed' && (
+                    <>
+                      <Button 
+                        variant="primary" 
+                        size="sm" 
+                        className="me-1"
+                        onClick={() => handleUpdateStatus(res.id, 'completed')}
+                      >
+                        Complete
+                      </Button>
+                      <Button 
+                        variant="outline-warning" 
+                        size="sm"
+                        onClick={() => handleUpdateStatus(res.id, 'no-show')}
+                      >
+                        No Show
+                      </Button>
+                    </>
+                  )}
+                    {res.status === 'cancellation_requested' && (
                       <>
                         <Button
-                          variant="success"
+                          variant="danger"
                           size="sm"
                           className="me-1"
-                          onClick={() => handleUpdateStatus(res.id, 'confirmed')}
+                          onClick={() => handleApproveCancellation(res.id)}
                         >
-                          Confirm
+                          Approve Cancellation
                         </Button>
                         <Button
-                          variant="outline-danger"
+                          variant="outline-success"
                           size="sm"
-                          onClick={() => {
-                            if (confirm('Are you sure you want to cancel this reservation?')) {
-                              handleUpdateStatus(res.id, 'cancelled');
-                            }
-                          }}
+                          onClick={() => handleRejectCancellation(res.id)}
                         >
-                          Cancel
+                          Reject
                         </Button>
                       </>
                     )}
-                    {res.status === 'confirmed' && (
-                      <>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          className="me-1"
-                          onClick={() => handleUpdateStatus(res.id, 'completed')}
-                        >
-                          Complete
-                        </Button>
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          onClick={() => handleUpdateStatus(res.id, 'no-show')}
-                        >
-                          No Show
-                        </Button>
-                      </>
-                    )}
-                    {res.status === 'completed' && (
-                      <Badge bg="secondary">✓ Finished</Badge>
-                    )}
-                    {res.status === 'cancelled' && (
-                      <Badge bg="danger">✗ Cancelled</Badge>
-                    )}
-                    {res.status === 'no-show' && (
-                      <Badge bg="dark">No Show</Badge>
-                    )}
-                  </td>
-                </tr>
+                  {res.status === 'completed' && (
+                    <Badge bg="secondary">✓ Finished</Badge>
+                  )}
+                  {res.status === 'cancelled' && (
+                    <Badge bg="danger">✗ Cancelled</Badge>
+                  )}
+                  {res.status === 'no-show' && (
+                    <Badge bg="dark">No Show</Badge>
+                  )}
+                </td>
+              </tr>
                 <tr>
                   <td colSpan="10" className="p-0 border-0">
                     <Collapse in={expandedRows[res.id]}>
                       <div className="bg-light p-3">
+                        {/* Show cancellation reason if applicable */}
+                        {res.cancellation_reason && (
+                          <Alert variant="warning" className="mb-3">
+                            <strong>Cancellation Request Reason:</strong> {res.cancellation_reason}
+                          </Alert>
+                        )}
+
                         <h6 className="mb-3">🍽️ Food Orders</h6>
                         {res.orders && res.orders.length > 0 ? (
                           res.orders.map(order => (

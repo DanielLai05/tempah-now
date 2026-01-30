@@ -112,6 +112,19 @@ export const reservationAPI = {
   getById: (id) => fetchWithAuth(`/reservations/${id}`),
 
   getUserReservations: () => fetchWithAuth('/reservations'),
+
+  // Request cancellation
+  requestCancellation: (id, reason) =>
+    fetchWithAuth(`/reservations/${id}/request-cancellation`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  // Withdraw cancellation request
+  cancelRequest: (id) =>
+    fetchWithAuth(`/reservations/${id}/cancel-request`, {
+      method: 'POST',
+    }),
 };
 
 // ============ CART API ============
@@ -210,6 +223,18 @@ export const staffAPI = {
     fetchStaffWithAuth(`/staff/reservations/${reservationId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
+    }),
+
+  // Approve cancellation request
+  approveCancellation: (reservationId) =>
+    fetchStaffWithAuth(`/staff/reservations/${reservationId}/approve-cancellation`, {
+      method: 'POST',
+    }),
+
+  // Reject cancellation request
+  rejectCancellation: (reservationId) =>
+    fetchStaffWithAuth(`/staff/reservations/${reservationId}/reject-cancellation`, {
+      method: 'POST',
     }),
 
   getStats: () =>
