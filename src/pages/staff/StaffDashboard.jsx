@@ -1,4 +1,4 @@
-// StaffDashboard.jsx - Shared dashboard for STAFF and MANAGER
+// StaffDashboard.jsx - Staff dashboard
 import React, { useContext, useState, useEffect, useCallback } from "react";
 import { Container, Row, Col, Card, Button, ListGroup, Badge, Spinner, Alert } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
@@ -7,12 +7,10 @@ import { staffAPI, restaurantAPI } from "../../services/api";
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
-  const { userRole, isManager, clearRole, userRestaurantId } = useContext(RoleContext);
+  const { clearRole, userRestaurantId } = useContext(RoleContext);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reservations, setReservations] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [stats, setStats] = useState(null);
   const [restaurants, setRestaurants] = useState([]);
   const [restaurantName, setRestaurantName] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -23,35 +21,21 @@ export default function StaffDashboard() {
     try {
       setError(null);
       setRefreshing(true);
-      
+
       // Fetch restaurants for name lookup
       const restaurantsData = await restaurantAPI.getAll();
       setRestaurants(restaurantsData);
-      
+
       // Find restaurant name
       if (userRestaurantId) {
         const restaurant = restaurantsData.find(r => r.id === userRestaurantId);
         setRestaurantName(restaurant?.name || "Unknown Restaurant");
       }
 
-      // Fetch reservations
+      // Fetch reservations (includes orders for each reservation)
       const reservationsData = await staffAPI.getReservations();
       setReservations(reservationsData);
-      
-      // Fetch orders
-      const ordersData = await staffAPI.getOrders();
-      setOrders(ordersData);
 
-      // For managers, fetch stats (including revenue)
-      if (isManager) {
-        try {
-          const statsData = await staffAPI.getStats();
-          setStats(statsData);
-        } catch (err) {
-          console.error('Error fetching stats:', err);
-        }
-      }
-      
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -60,7 +44,7 @@ export default function StaffDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userRestaurantId, isManager]);
+  }, [userRestaurantId]);
 
   // Initial fetch
   useEffect(() => {
@@ -74,6 +58,12 @@ export default function StaffDashboard() {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchDashboardData]);
+
+  // Count total orders across all reservations
+  const totalOrdersCount = reservations.reduce((sum, r) => sum + (r.orders?.length || 0), 0);
+  const pendingOrdersCount = reservations.reduce((sum, r) => {
+    return sum + (r.orders?.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status)).length || 0);
+  }, 0);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -96,25 +86,6 @@ export default function StaffDashboard() {
     } catch {
       return timeStr;
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
-  };
-
-  const getStatusBadge = (status) => {
-    const variants = {
-      pending: 'warning',
-      confirmed: 'info',
-      preparing: 'primary',
-      ready: 'success',
-      completed: 'secondary',
-      cancelled: 'danger'
-    };
-    return <Badge bg={variants[status] || 'secondary'}>{status}</Badge>;
   };
 
   const reservationStatusBadge = (status) => {
@@ -142,30 +113,30 @@ export default function StaffDashboard() {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
-          <h2 className="mb-1">{isManager ? 'Manager Dashboard' : 'Staff Dashboard'}</h2>
+          <h2 className="mb-1">Staff Dashboard</h2>
           <div className="d-flex flex-wrap gap-2 align-items-center">
-            <Badge bg={isManager ? "warning" : "info"} className="fs-6">
-              {isManager ? '👔 MANAGER' : '👤 STAFF'}
+            <Badge bg="info" className="fs-6">
+              STAFF
             </Badge>
             {userRestaurantId && (
               <Badge bg="primary" className="fs-6">
-                🏪 {restaurantName}
+                {restaurantName}
               </Badge>
             )}
           </div>
         </div>
         <div className="d-flex gap-2">
-          <Button 
-            variant={refreshing ? "secondary" : "outline-primary"} 
-            size="sm" 
+          <Button
+            variant={refreshing ? "secondary" : "outline-primary"}
+            size="sm"
             onClick={fetchDashboardData}
             disabled={refreshing}
           >
-            {refreshing ? '↻ Loading...' : '🔄 Refresh'}
+            {refreshing ? 'Loading...' : 'Refresh'}
           </Button>
-          <Button 
-            variant="outline-secondary" 
-            size="sm" 
+          <Button
+            variant="outline-secondary"
+            size="sm"
             onClick={() => {
               localStorage.removeItem('staffToken');
               clearRole();
@@ -190,55 +161,44 @@ export default function StaffDashboard() {
 
       {/* Quick Stats */}
       <Row className="g-4 mb-4">
-        <Col md={isManager ? 3 : 4}>
+        <Col md={4}>
           <Card className="text-center shadow-sm h-100 border-0" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
             <Card.Body className="text-center">
               <div className="display-4 fw-bold">{reservations.length}</div>
-              <div className="small opacity-75">📅 Total Reservations</div>
+              <div className="small opacity-75">Total Reservations</div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={isManager ? 3 : 4}>
+        <Col md={4}>
           <Card className="text-center shadow-sm h-100 border-0" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
             <Card.Body className="text-center">
-              <div className="display-4 fw-bold">{orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status)).length}</div>
-              <div className="small opacity-75">⏳ Active Orders</div>
+              <div className="display-4 fw-bold">{totalOrdersCount}</div>
+              <div className="small opacity-75">Food Orders</div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={isManager ? 3 : 4}>
+        <Col md={4}>
           <Card className="text-center shadow-sm h-100 border-0" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
             <Card.Body className="text-center">
-              <div className="display-4 fw-bold">{orders.filter(o => o.status === 'completed').length}</div>
-              <div className="small opacity-75">✅ Completed Orders</div>
+              <div className="display-4 fw-bold">{pendingOrdersCount}</div>
+              <div className="small opacity-75">Pending Orders</div>
             </Card.Body>
           </Card>
         </Col>
-        {/* Revenue - Only for Manager */}
-        {isManager && (
-          <Col md={3}>
-            <Card className="text-center shadow-sm h-100 border-0" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white' }}>
-              <Card.Body className="text-center">
-                <div className="display-4 fw-bold">{formatCurrency(stats?.totalRevenue)}</div>
-                <div className="small opacity-75">💰 Today's Revenue</div>
-              </Card.Body>
-            </Card>
-          </Col>
-        )}
       </Row>
 
       <Row className="g-4">
         {/* Reservations */}
-        <Col md={6}>
+        <Col md={12}>
           <Card className="shadow-sm h-100">
             <Card.Header className="d-flex justify-content-between align-items-center bg-white">
               <div className="d-flex align-items-center gap-2">
-                <span style={{ fontSize: '1.5rem' }}>📅</span>
-                <Card.Title className="mb-0">Reservations</Card.Title>
+                <span style={{ fontSize: '1.5rem' }}></span>
+                <Card.Title className="mb-0">Reservations & Orders</Card.Title>
                 <Badge bg="secondary">{reservations.length}</Badge>
               </div>
-              <Button variant="link" size="sm" onClick={() => navigate("/staff/reservations")}>
-                Manage →
+              <Button variant="primary" size="sm" onClick={() => navigate("/staff/reservations")}>
+                Manage All
               </Button>
             </Card.Header>
             <Card.Body>
@@ -258,8 +218,20 @@ export default function StaffDashboard() {
                         <div>
                           <div className="fw-semibold">{r.customer_name || 'Unknown Guest'}</div>
                           <small className="text-muted">
-                            👥 {r.party_size} guests
+                            {r.party_size} guests
                           </small>
+                          {r.orders && r.orders.length > 0 && (
+                            <div className="mt-1">
+                              <Badge bg="info" className="me-1">
+                                {r.orders.length} order(s)
+                              </Badge>
+                              {r.orders.map(o => (
+                                <Badge key={o.id} bg="warning" text="dark" className="me-1" title={`Order #${o.id}: $${o.total_amount}`}>
+                                  #{o.id} (${o.total_amount})
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       {reservationStatusBadge(r.status)}
@@ -267,105 +239,6 @@ export default function StaffDashboard() {
                   ))}
                 </ListGroup>
               )}
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* Orders */}
-        <Col md={6}>
-          <Card className="shadow-sm h-100">
-            <Card.Header className="d-flex justify-content-between align-items-center bg-white">
-              <div className="d-flex align-items-center gap-2">
-                <span style={{ fontSize: '1.5rem' }}>🛒</span>
-                <Card.Title className="mb-0">Orders</Card.Title>
-                <Badge bg="secondary">{orders.length}</Badge>
-              </div>
-              <Button variant="link" size="sm" onClick={() => navigate("/staff/orders")}>
-                Manage →
-              </Button>
-            </Card.Header>
-            <Card.Body>
-              {orders.length === 0 ? (
-                <div className="text-center text-muted py-4">
-                  <p className="mb-0">No orders yet</p>
-                </div>
-              ) : (
-                <ListGroup variant="flush">
-                  {orders.slice(0, 5).map((o) => (
-                    <ListGroup.Item key={o.id} className="d-flex justify-content-between align-items-start py-3">
-                      <div className="d-flex gap-3">
-                        <div className="text-center" style={{ minWidth: '50px' }}>
-                          <div className="fw-bold">#{o.id}</div>
-                        </div>
-                        <div>
-                          <div className="fw-semibold">{o.customer_email || 'Unknown'}</div>
-                          <small className="text-muted">
-                            📍 {o.restaurant_name}
-                          </small>
-                        </div>
-                      </div>
-                      {getStatusBadge(o.status)}
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Quick Actions */}
-      <Row className="g-4 mt-2">
-        <Col md={12}>
-          <Card className="shadow-sm">
-            <Card.Header className="bg-white">
-              <Card.Title className="mb-0">⚡ Quick Actions</Card.Title>
-            </Card.Header>
-            <Card.Body>
-              <Row className="g-2">
-                <Col xs={6} md={3}>
-                  <Button 
-                    variant="primary" 
-                    className="w-100 p-3"
-                    onClick={() => navigate("/staff/reservations")}
-                  >
-                    📅 Manage Reservations
-                  </Button>
-                </Col>
-                <Col xs={6} md={3}>
-                  <Button 
-                    variant="info" 
-                    className="w-100 p-3"
-                    onClick={() => navigate("/staff/orders")}
-                  >
-                    🛒 Manage Orders
-                  </Button>
-                </Col>
-                {isManager && (
-                  <Col xs={6} md={3}>
-                    <Button 
-                      variant="success" 
-                      className="w-100 p-3"
-                      onClick={() => navigate("/staff/analytics")}
-                    >
-                      📊 View Analytics
-                    </Button>
-                  </Col>
-                )}
-                <Col xs={6} md={isManager ? 3 : 6}>
-                  <Button 
-                    variant="outline-secondary" 
-                    className="w-100 p-3"
-                    onClick={() => {
-                      localStorage.removeItem('staffToken');
-                      clearRole();
-                      navigate("/staff/login");
-                    }}
-                  >
-                    🚪 Logout
-                  </Button>
-                </Col>
-              </Row>
             </Card.Body>
           </Card>
         </Col>

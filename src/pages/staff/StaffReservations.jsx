@@ -1,19 +1,34 @@
 // StaffReservations.jsx - View and manage reservations
 import React, { useState, useEffect, useContext } from "react";
-import { Container, Table, Button, Badge, Card, Row, Col, Spinner, Alert, Form } from "react-bootstrap";
+import { Container, Table, Button, Badge, Card, Row, Col, Spinner, Alert, Collapse } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import { RoleContext } from "../../context/RoleContext";
 import { staffAPI, restaurantAPI } from "../../services/api";
 
 export default function StaffReservations() {
-  const { userRole, isManager, userRestaurantId, clearRole } = useContext(RoleContext);
+  const navigate = useNavigate();
+  const { userRestaurantId, clearRole, userRole } = useContext(RoleContext);
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [restaurants, setRestaurants] = useState([]);
-  const [selectedRestaurant, setSelectedRestaurant] = useState("");
   const [restaurantName, setRestaurantName] = useState("");
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [expandedRows, setExpandedRows] = useState({});
+
+  // Redirect if not staff
+  useEffect(() => {
+    if (userRole && userRole !== 'staff') {
+      navigate("/admin/dashboard");
+    }
+  }, [userRole, navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('staffToken');
+    clearRole();
+    navigate("/staff/login");
+  };
 
   // Fetch restaurants for dropdown
   useEffect(() => {
@@ -21,12 +36,19 @@ export default function StaffReservations() {
       try {
         const data = await restaurantAPI.getAll();
         setRestaurants(data);
+        // Set restaurant name based on userRestaurantId
+        if (userRestaurantId) {
+          const restaurant = data.find(r => r.id === userRestaurantId);
+          if (restaurant) {
+            setRestaurantName(restaurant.name);
+          }
+        }
       } catch (err) {
         console.error('Error fetching restaurants:', err);
       }
     };
     fetchRestaurants();
-  }, []);
+  }, [userRestaurantId]);
 
   // Fetch reservations
   const fetchReservations = async () => {
@@ -38,7 +60,7 @@ export default function StaffReservations() {
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error fetching reservations:', err);
-      
+
       if (err.message?.includes('token') || err.message?.includes('auth')) {
         clearRole();
         window.location.href = '/staff/login';
@@ -62,16 +84,6 @@ export default function StaffReservations() {
     return () => clearInterval(interval);
   }, []);
 
-  // Update restaurant name when selection changes
-  useEffect(() => {
-    if (selectedRestaurant) {
-      const restaurant = restaurants.find(r => r.id === parseInt(selectedRestaurant));
-      setRestaurantName(restaurant?.name || "");
-    } else {
-      setRestaurantName("");
-    }
-  }, [selectedRestaurant, restaurants]);
-
   // Filter reservations by status
   const filteredReservations = statusFilter
     ? reservations.filter(r => r.status === statusFilter)
@@ -88,6 +100,17 @@ export default function StaffReservations() {
     return <Badge bg={variants[status] || 'secondary'}>{status}</Badge>;
   };
 
+  const getOrderStatusBadge = (status) => {
+    const variants = {
+      pending: 'warning',
+      preparing: 'info',
+      ready: 'success',
+      completed: 'secondary',
+      cancelled: 'danger'
+    };
+    return <Badge bg={variants[status] || 'secondary'} className="ms-1">{status}</Badge>;
+  };
+
   const handleUpdateStatus = async (reservationId, newStatus) => {
     try {
       await staffAPI.updateReservationStatus(reservationId, newStatus);
@@ -96,6 +119,13 @@ export default function StaffReservations() {
       console.error('Error updating reservation:', err);
       alert(err.message || "Failed to update reservation");
     }
+  };
+
+  const toggleRow = (id) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
   };
 
   const formatDate = (dateStr) => {
@@ -126,6 +156,14 @@ export default function StaffReservations() {
     }
   };
 
+  const formatCurrency = (amount) => {
+    if (!amount) return '$0.00';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
   if (loading && reservations.length === 0) {
     return (
       <Container className="py-5 text-center">
@@ -139,45 +177,31 @@ export default function StaffReservations() {
     <Container className="py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2>📅 Manage Reservations</h2>
+          <Button variant="link" onClick={() => navigate("/staff/dashboard")} className="ps-0 mb-2">
+            ← Back to Dashboard
+          </Button>
+          <h2>Manage Reservations</h2>
           <p className="text-muted mb-0">
-            {isManager ? 'Manager View' : 'Staff View'}
-            {restaurantName && <span> • 🏪 {restaurantName}</span>}
+            Staff View
+            {restaurantName && <span> • {restaurantName}</span>}
           </p>
         </div>
         <div className="d-flex gap-2">
           <Button variant="outline-primary" size="sm" onClick={fetchReservations}>
             🔄 Refresh
           </Button>
+          <Button variant="outline-secondary" size="sm" onClick={handleLogout}>
+            Logout
+          </Button>
         </div>
       </div>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      {/* Restaurant Filter (for managers) */}
-      {isManager && (
-        <Row className="mb-4">
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label>Filter by Restaurant</Form.Label>
-              <Form.Select 
-                value={selectedRestaurant}
-                onChange={(e) => setSelectedRestaurant(e.target.value)}
-              >
-                <option value="">All Restaurants</option>
-                {restaurants.map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          </Col>
-        </Row>
-      )}
-
       {/* Status Filter */}
       <div className="mb-4">
         <span className="me-2">Status:</span>
-        <Button 
+        <Button
           variant={statusFilter === "" ? "primary" : "outline-secondary"}
           size="sm"
           className="me-2"
@@ -185,7 +209,7 @@ export default function StaffReservations() {
         >
           All ({reservations.length})
         </Button>
-        <Button 
+        <Button
           variant={statusFilter === "pending" ? "primary" : "outline-secondary"}
           size="sm"
           className="me-2"
@@ -193,7 +217,7 @@ export default function StaffReservations() {
         >
           Pending ({reservations.filter(r => r.status === 'pending').length})
         </Button>
-        <Button 
+        <Button
           variant={statusFilter === "confirmed" ? "primary" : "outline-secondary"}
           size="sm"
           className="me-2"
@@ -201,7 +225,7 @@ export default function StaffReservations() {
         >
           Confirmed ({reservations.filter(r => r.status === 'confirmed').length})
         </Button>
-        <Button 
+        <Button
           variant={statusFilter === "completed" ? "primary" : "outline-secondary"}
           size="sm"
           className="me-2"
@@ -209,7 +233,7 @@ export default function StaffReservations() {
         >
           Completed ({reservations.filter(r => r.status === 'completed').length})
         </Button>
-        <Button 
+        <Button
           variant={statusFilter === "cancelled" ? "primary" : "outline-secondary"}
           size="sm"
           onClick={() => setStatusFilter("cancelled")}
@@ -276,10 +300,10 @@ export default function StaffReservations() {
         <Table striped bordered hover responsive>
           <thead>
             <tr>
+              <th style={{ width: '40px' }}></th>
               <th>ID</th>
               <th>Customer</th>
               <th>Contact</th>
-              <th>Restaurant</th>
               <th>Date</th>
               <th>Time</th>
               <th>Party</th>
@@ -290,79 +314,153 @@ export default function StaffReservations() {
           </thead>
           <tbody>
             {filteredReservations.map(res => (
-              <tr key={res.id}>
-                <td>#{res.id}</td>
-                <td>
-                  <div className="fw-semibold">{res.customer_name || 'Unknown'}</div>
-                  <small className="text-muted">{res.customer_email}</small>
-                </td>
-                <td>
-                  <small>{res.customer_phone || '-'}</small>
-                </td>
-                <td>
-                  <Badge bg="info">{res.restaurant_name}</Badge>
-                </td>
-                <td>{formatDate(res.reservation_date)}</td>
-                <td>{formatTime(res.reservation_time)}</td>
-                <td>{res.party_size} guests</td>
-                <td>
-                  <Badge bg="secondary">{res.table_name || `Table ${res.table_id}`}</Badge>
-                </td>
-                <td>{getStatusBadge(res.status)}</td>
-                <td>
-                  {res.status === 'pending' && (
-                    <>
-                      <Button 
-                        variant="success" 
-                        size="sm" 
-                        className="me-1"
-                        onClick={() => handleUpdateStatus(res.id, 'confirmed')}
-                      >
-                        Confirm
-                      </Button>
-                      <Button 
-                        variant="outline-danger" 
-                        size="sm"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to cancel this reservation?')) {
-                            handleUpdateStatus(res.id, 'cancelled');
-                          }
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  )}
-                  {res.status === 'confirmed' && (
-                    <>
-                      <Button 
-                        variant="primary" 
-                        size="sm" 
-                        className="me-1"
-                        onClick={() => handleUpdateStatus(res.id, 'completed')}
-                      >
-                        Complete
-                      </Button>
-                      <Button 
-                        variant="outline-warning" 
-                        size="sm"
-                        onClick={() => handleUpdateStatus(res.id, 'no-show')}
-                      >
-                        No Show
-                      </Button>
-                    </>
-                  )}
-                  {res.status === 'completed' && (
-                    <Badge bg="secondary">✓ Finished</Badge>
-                  )}
-                  {res.status === 'cancelled' && (
-                    <Badge bg="danger">✗ Cancelled</Badge>
-                  )}
-                  {res.status === 'no-show' && (
-                    <Badge bg="dark">No Show</Badge>
-                  )}
-                </td>
-              </tr>
+              <React.Fragment key={res.id}>
+                <tr>
+                  <td>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => toggleRow(res.id)}
+                      className="p-0 text-decoration-none"
+                    >
+                      {expandedRows[res.id] ? '▼' : '▶'}
+                    </Button>
+                  </td>
+                  <td>#{res.id}</td>
+                  <td>
+                    <div className="fw-semibold">{res.customer_name || 'Unknown'}</div>
+                    <small className="text-muted">{res.customer_email}</small>
+                  </td>
+                  <td>
+                    <small>{res.customer_phone || '-'}</small>
+                  </td>
+                  <td>{formatDate(res.reservation_date)}</td>
+                  <td>{formatTime(res.reservation_time)}</td>
+                  <td>{res.party_size} guests</td>
+                  <td>
+                    <Badge bg="secondary">{res.table_name || `Table ${res.table_id}`}</Badge>
+                  </td>
+                  <td>{getStatusBadge(res.status)}</td>
+                  <td>
+                    {res.status === 'pending' && (
+                      <>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          className="me-1"
+                          onClick={() => handleUpdateStatus(res.id, 'confirmed')}
+                        >
+                          Confirm
+                        </Button>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to cancel this reservation?')) {
+                              handleUpdateStatus(res.id, 'cancelled');
+                            }
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                    {res.status === 'confirmed' && (
+                      <>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="me-1"
+                          onClick={() => handleUpdateStatus(res.id, 'completed')}
+                        >
+                          Complete
+                        </Button>
+                        <Button
+                          variant="outline-warning"
+                          size="sm"
+                          onClick={() => handleUpdateStatus(res.id, 'no-show')}
+                        >
+                          No Show
+                        </Button>
+                      </>
+                    )}
+                    {res.status === 'completed' && (
+                      <Badge bg="secondary">✓ Finished</Badge>
+                    )}
+                    {res.status === 'cancelled' && (
+                      <Badge bg="danger">✗ Cancelled</Badge>
+                    )}
+                    {res.status === 'no-show' && (
+                      <Badge bg="dark">No Show</Badge>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan="10" className="p-0 border-0">
+                    <Collapse in={expandedRows[res.id]}>
+                      <div className="bg-light p-3">
+                        <h6 className="mb-3">🍽️ Food Orders</h6>
+                        {res.orders && res.orders.length > 0 ? (
+                          res.orders.map(order => (
+                            <Card key={order.id} className="mb-3">
+                              <Card.Header className="d-flex justify-content-between align-items-center py-2">
+                                <div>
+                                  <strong>Order #{order.id}</strong>
+                                  {getOrderStatusBadge(order.status)}
+                                </div>
+                                <span className="fw-bold">
+                                  {formatCurrency(order.total_amount)}
+                                </span>
+                              </Card.Header>
+                              <Card.Body className="py-2">
+                                <Table striped bordered hover size="sm" className="mb-0">
+                                  <thead className="table-light">
+                                    <tr>
+                                      <th>Item</th>
+                                      <th className="text-center">Qty</th>
+                                      <th className="text-end">Price</th>
+                                      <th className="text-end">Subtotal</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {order.items && order.items.length > 0 ? (
+                                      order.items.map((item, idx) => (
+                                        <tr key={idx}>
+                                          <td>
+                                            {item.item_name || 'Unknown Item'}
+                                            {item.special_instructions && (
+                                              <div className="text-muted small">
+                                                Note: {item.special_instructions}
+                                              </div>
+                                            )}
+                                          </td>
+                                          <td className="text-center">{item.quantity}</td>
+                                          <td className="text-end">{formatCurrency(item.unit_price)}</td>
+                                          <td className="text-end">{formatCurrency(item.subtotal)}</td>
+                                        </tr>
+                                      ))
+                                    ) : (
+                                      <tr>
+                                        <td colSpan="4" className="text-center text-muted">
+                                          No items found
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </Table>
+                              </Card.Body>
+                            </Card>
+                          ))
+                        ) : (
+                          <Alert variant="info" className="mb-0">
+                            No food orders for this reservation
+                          </Alert>
+                        )}
+                      </div>
+                    </Collapse>
+                  </td>
+                </tr>
+              </React.Fragment>
             ))}
           </tbody>
         </Table>

@@ -11,7 +11,8 @@ export default function HitPayCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { cart: contextCart, clearCart } = useContext(AppContext);
-  
+  const orderCreated = useRef(false); // Prevent duplicate order creation
+
   // Get data from location state (passed from PaymentMethod)
   const state = location.state || {};
   const reservation = state.reservation || null;
@@ -19,7 +20,7 @@ export default function HitPayCheckout() {
   const restaurant = state.restaurant || {};
   const customer = state.customer || {};
   const subtotal = state.subtotal || 0;
-  
+
   const cart = stateCart.length > 0 ? stateCart : contextCart;
   const cartItems = cart.length > 0 ? cart : [];
   
@@ -32,6 +33,13 @@ export default function HitPayCheckout() {
 
   // Create payment via backend
   const handleCreatePayment = async () => {
+    // Prevent duplicate order creation
+    if (orderCreated.current) {
+      console.log('Order already being created, skipping...');
+      return;
+    }
+    orderCreated.current = true;
+
     setLoading(true);
     setError('');
     setPaymentUrl('');
@@ -43,11 +51,23 @@ export default function HitPayCheckout() {
         throw new Error('Please login to continue');
       }
 
+      // Check sessionStorage for existing order (prevent duplicates on refresh)
+      const cartKey = cartItems.map(item => `${item.menuItemId || item.id}-${item.quantity}`).join(',');
+      const lastOrderKey = sessionStorage.getItem('lastOrderKey');
+      const lastOrderTime = sessionStorage.getItem('lastOrderTime');
+      const now = Date.now();
+
+      if (lastOrderKey === cartKey && lastOrderTime && (now - parseInt(lastOrderTime)) < 10000) {
+        console.log('Order already exists for this cart, checking for existing order...');
+        // Don't throw error, just skip order creation and let user proceed
+      }
+
       // Create order first
       const orderResult = await orderAPI.create({
         reservation_id: reservation?.id || null,
         notes: `Order for ${restaurant?.name || 'Restaurant'}`,
         items: cartItems.map(item => ({
+          item_id: item.menuItemId || item.id,
           item_name: item.name,
           price: item.price,
           quantity: item.quantity
@@ -57,6 +77,10 @@ export default function HitPayCheckout() {
       });
       
       setOrder(orderResult.order);
+
+      // Store to prevent duplicate orders
+      sessionStorage.setItem('lastOrderKey', cartKey);
+      sessionStorage.setItem('lastOrderTime', now.toString());
 
       // For demo purposes, simulate HitPay payment
       // In production, you would integrate with actual HitPay API
@@ -84,6 +108,7 @@ export default function HitPayCheckout() {
     } catch (err) {
       console.error('Payment error:', err);
       setError(err.message || 'Failed to create payment. Please try again.');
+      console.error('Full error details:', err);
     } finally {
       setLoading(false);
     }

@@ -7,7 +7,7 @@ import { adminAPI, restaurantAPI } from "../../services/api";
 
 export default function AdminStaff() {
   const navigate = useNavigate();
-  const { clearRole } = useContext(RoleContext);
+  const { clearRole, userRole } = useContext(RoleContext);
   const [staff, setStaff] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +22,19 @@ export default function AdminStaff() {
     role: "staff",
     restaurant_id: ""
   });
+
+  // Redirect if not admin
+  useEffect(() => {
+    if (userRole && userRole !== 'admin') {
+      navigate("/staff/dashboard");
+    }
+  }, [userRole, navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    clearRole();
+    navigate("/admin/login");
+  };
 
   const fetchData = async () => {
     try {
@@ -116,7 +129,6 @@ export default function AdminStaff() {
 
   const getRoleBadge = (role) => {
     const variants = {
-      manager: "warning",
       staff: "info"
     };
     return <Badge bg={variants[role] || "secondary"}>{role}</Badge>;
@@ -139,18 +151,23 @@ export default function AdminStaff() {
           <Button variant="link" onClick={() => navigate("/admin/dashboard")}>
             ← Back to Dashboard
           </Button>
-          <h2>👥 Staff Management</h2>
+          <h2>Staff Management</h2>
         </div>
-        <Button variant="primary" onClick={() => handleOpenModal()}>
-          + Add New Staff
-        </Button>
+        <div className="d-flex gap-2">
+          <Button variant="outline-secondary" onClick={handleLogout}>
+            Logout
+          </Button>
+          <Button variant="primary" onClick={() => handleOpenModal()}>
+            + Add New Staff
+          </Button>
+        </div>
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
       {/* Staff Stats */}
       <Row className="mb-4">
-        <Col md={3}>
+        <Col md={4}>
           <Card className="text-center">
             <Card.Body>
               <Card.Title className="display-4">{staff.length}</Card.Title>
@@ -158,27 +175,17 @@ export default function AdminStaff() {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <Card.Title className="display-4 text-warning">
-                {staff.filter(s => s.role === 'manager').length}
-              </Card.Title>
-              <Card.Text>Managers</Card.Text>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
+        <Col md={4}>
           <Card className="text-center">
             <Card.Body>
               <Card.Title className="display-4 text-info">
                 {staff.filter(s => s.role === 'staff').length}
               </Card.Title>
-              <Card.Text>Regular Staff</Card.Text>
+              <Card.Text>Staff Members</Card.Text>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
+        <Col md={4}>
           <Card className="text-center">
             <Card.Body>
               <Card.Title className="display-4">{restaurants.length}</Card.Title>
@@ -309,7 +316,6 @@ export default function AdminStaff() {
                     required
                   >
                     <option value="staff">Staff</option>
-                    <option value="manager">Manager</option>
                   </Form.Select>
                 </Form.Group>
               </Col>

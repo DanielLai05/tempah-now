@@ -7,7 +7,7 @@ import { adminAPI } from "../../services/api";
 
 export default function AdminRestaurants() {
   const navigate = useNavigate();
-  const { clearRole } = useContext(RoleContext);
+  const { clearRole, userRole } = useContext(RoleContext);
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,11 +23,35 @@ export default function AdminRestaurants() {
     is_active: true
   });
 
+  // Redirect if not admin
+  useEffect(() => {
+    if (userRole && userRole !== 'admin') {
+      navigate("/staff/dashboard");
+    }
+  }, [userRole, navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    clearRole();
+    navigate("/admin/login");
+  };
+
   const fetchRestaurants = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await adminAPI.getAllRestaurants();
+      console.log('=== RESTAURANTS DATA FROM DATABASE ===');
+      console.log('Total restaurants:', data.length);
+      data.forEach(function(r, index) {
+        console.log('[' + (index + 1) + '] ' + r.name + ':');
+        console.log('    ID: ' + r.id);
+        console.log('    is_active: ' + r.is_active);
+        console.log('    total_reservations: ' + r.total_reservations);
+        console.log('    total_orders: ' + r.total_orders);
+        console.log('    total_staff: ' + r.total_staff);
+      });
+      console.log('=======================================');
       setRestaurants(data);
     } catch (err) {
       console.error('Error fetching restaurants:', err);
@@ -125,13 +149,18 @@ export default function AdminRestaurants() {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <Button variant="link" onClick={() => navigate("/admin/dashboard")}>
-            ← Back to Dashboard
+            Back to Dashboard
           </Button>
-          <h2>🏪 Restaurant Management</h2>
+          <h2>Restaurant Management</h2>
         </div>
-        <Button variant="primary" onClick={() => handleOpenModal()}>
-          + Add New Restaurant
-        </Button>
+        <div className="d-flex gap-2">
+          <Button variant="outline-secondary" onClick={handleLogout}>
+            Logout
+          </Button>
+          <Button variant="primary" onClick={() => handleOpenModal()}>
+            + Add New Restaurant
+          </Button>
+        </div>
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
@@ -198,11 +227,20 @@ export default function AdminRestaurants() {
                     <td>{r.cuisine || '-'}</td>
                     <td>{r.capacity || '-'}</td>
                     <td>
-                      <small>
-                        📅 {r.total_reservations || 0} | 
-                        🛒 {r.total_orders || 0} | 
-                        👤 {r.total_staff || 0}
-                      </small>
+                      <div className="d-flex gap-3">
+                        <div className="text-center">
+                          <div className="fw-bold">{r.total_reservations || 0}</div>
+                          <small className="text-muted">Reservations</small>
+                        </div>
+                        <div className="text-center">
+                          <div className="fw-bold">{r.total_orders || 0}</div>
+                          <small className="text-muted">Orders</small>
+                        </div>
+                        <div className="text-center">
+                          <div className="fw-bold">{r.total_staff || 0}</div>
+                          <small className="text-muted">Staff</small>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       <Badge bg={r.is_active !== false ? "success" : "secondary"}>

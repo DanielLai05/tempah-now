@@ -1,4 +1,4 @@
-// StaffAnalytics.jsx - Analytics for Manager
+// StaffAnalytics.jsx - Analytics page for staff
 import React, { useState, useEffect, useContext } from "react";
 import { Container, Row, Col, Card, Table, Form, Button, Spinner, Alert } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +7,7 @@ import { staffAPI } from "../../services/api";
 
 export default function StaffAnalytics() {
   const navigate = useNavigate();
-  const { isManager, userRole, clearRole } = useContext(RoleContext);
+  const { userRole, clearRole } = useContext(RoleContext);
   const [selectedPeriod, setSelectedPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,12 +19,12 @@ export default function StaffAnalytics() {
   const [recentReservations, setRecentReservations] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
 
-  // Redirect if not manager
+  // Redirect if not authenticated
   useEffect(() => {
-    if (userRole && !isManager) {
+    if (!userRole) {
       navigate("/staff/dashboard");
     }
-  }, [isManager, userRole, navigate]);
+  }, [userRole, navigate]);
 
   // Fetch analytics data
   const fetchAnalytics = async () => {

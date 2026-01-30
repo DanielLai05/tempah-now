@@ -52,13 +52,34 @@ export default function App() {
 
             {/* Staff Portal */}
             <Route path="/staff/login" element={<StaffLogin />} />
-            <Route path="/staff/dashboard" element={<StaffDashboard />} />
-            <Route path="/staff/orders" element={<StaffOrders />} />
-            <Route path="/staff/reservations" element={<StaffReservations />} />
+            <Route 
+              path="/staff/dashboard" 
+              element={
+                <ProtectedRoute requireStaff={true}>
+                  <StaffDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/staff/orders" 
+              element={
+                <ProtectedRoute requireStaff={true}>
+                  <StaffOrders />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/staff/reservations" 
+              element={
+                <ProtectedRoute requireStaff={true}>
+                  <StaffReservations />
+                </ProtectedRoute>
+              } 
+            />
             <Route 
               path="/staff/analytics" 
               element={
-                <ProtectedRoute requireManager={true}>
+                <ProtectedRoute requireStaff={true}>
                   <StaffAnalytics />
                 </ProtectedRoute>
               } 
@@ -66,12 +87,54 @@ export default function App() {
 
             {/* Admin Portal */}
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/analytics" element={<AdminAnalytics />} />
-            <Route path="/admin/restaurants" element={<AdminRestaurants />} />
-            <Route path="/admin/orders" element={<AdminOrders />} />
-            <Route path="/admin/reservations" element={<AdminReservations />} />
-            <Route path="/admin/staff" element={<AdminStaff />} />
+            <Route 
+              path="/admin/dashboard" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/analytics" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminAnalytics />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/restaurants" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminRestaurants />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/orders" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminOrders />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/reservations" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminReservations />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/staff" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminStaff />
+                </ProtectedRoute>
+              } 
+            />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/home" />} />

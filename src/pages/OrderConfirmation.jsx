@@ -1,26 +1,99 @@
 // OrderConfirmation.jsx
-import React, { useContext, useRef } from "react";
+import React, { useContext, useRef, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Container, Card, Button, Row, Col, Alert } from "react-bootstrap";
+import { Container, Card, Button, Row, Col, Alert, Spinner } from "react-bootstrap";
 import Navbar from "../components/Navbar";
 import { formatPrice } from "../utils/formatters";
 import { AppContext } from "../context/AppContext";
+import { orderAPI } from "../services/api";
 
 export default function OrderConfirmation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { clearCart } = useContext(AppContext);
   const cartCleared = useRef(false);
+  const orderCreated = useRef(false); // Track if order was already created for this cart
+  const [creatingOrder, setCreatingOrder] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState(null);
+  const [orderError, setOrderError] = useState(null);
 
   // Safely get state - handle null/undefined
   const state = location.state || {};
-  const order = state.order || null;
+  const existingOrder = state.order || null;
   const reservation = state.reservation || null;
   const message = state.message || "Your order has been placed successfully!";
   const cart = state.cart || [];
+  const restaurant = state.restaurant || {};
+  const subtotal = state.subtotal || 0;
+
+  // Create order if one doesn't exist (for "Pay at Counter" flow)
+  useEffect(() => {
+    const createOrderIfNeeded = async () => {
+      // Skip if order already exists or no cart items
+      if (existingOrder || cart.length === 0) return;
+
+      // Skip if already created for this cart (useRef)
+      if (orderCreated.current) {
+        console.log('Skipping - order already created for this cart');
+        return;
+      }
+
+      // Check sessionStorage to prevent duplicate orders from page refresh/navigation
+      const cartKey = cart.map(item => `${item.menuItemId || item.id}-${item.quantity}`).join(',');
+      const lastOrderKey = sessionStorage.getItem('lastOrderKey');
+      const lastOrderTime = sessionStorage.getItem('lastOrderTime');
+      const now = Date.now();
+
+      // If same cart was ordered within last 10 seconds, skip (longer window for safety)
+      if (lastOrderKey === cartKey && lastOrderTime && (now - parseInt(lastOrderTime)) < 10000) {
+        console.log('Skipping duplicate order creation (same cart within 10 seconds)');
+        // Mark as created so we don't try again
+        orderCreated.current = true;
+        return;
+      }
+
+      // Mark as creating
+      orderCreated.current = true;
+      setCreatingOrder(true);
+      setOrderError(null);
+      
+      try {
+        console.log('Creating order for cart:', cart);
+        
+        const orderResult = await orderAPI.create({
+          reservation_id: reservation?.id || null,
+          notes: `Order for ${restaurant?.name || 'Restaurant'}`,
+          items: cart.map(item => ({
+            item_id: item.menuItemId || item.id,
+            item_name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          total_amount: subtotal,
+          restaurant_id: restaurant?.id
+        });
+
+        console.log('Order created successfully:', orderResult);
+        setCreatedOrder(orderResult.order);
+        
+        // Store the cart key and time to prevent duplicates
+        sessionStorage.setItem('lastOrderKey', cartKey);
+        sessionStorage.setItem('lastOrderTime', now.toString());
+        
+      } catch (err) {
+        console.error('Error creating order:', err);
+        setOrderError('Failed to save order: ' + (err.message || 'Unknown error'));
+        // Don't show full error to user
+      } finally {
+        setCreatingOrder(false);
+      }
+    };
+
+    createOrderIfNeeded();
+  }, [existingOrder, cart, restaurant, subtotal, reservation, creatingOrder]);
 
   // Clear cart only once when component mounts
-  React.useEffect(() => {
+  useEffect(() => {
     if (cart && cart.length > 0 && !cartCleared.current) {
       cartCleared.current = true;
       clearCart();
@@ -28,7 +101,7 @@ export default function OrderConfirmation() {
   }, [cart, clearCart]);
 
   // If no order/reservation data, show error
-  if (!order && !reservation) {
+  if (!createdOrder && !existingOrder && !reservation && cart.length === 0) {
     return (
       <>
         <Navbar />
@@ -48,7 +121,23 @@ export default function OrderConfirmation() {
     );
   }
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
+  // Use created order or existing order
+  const order = createdOrder || existingOrder;
+
+  const calculateCartTotal = () => {
+    if (!cart || cart.length === 0) return 0;
+    return cart.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0);
+  };
+  
+  const cartTotal = subtotal || calculateCartTotal();
+
+  // Helper to format currency safely
+  const safeFormatCurrency = (amount) => {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '$0.00';
+    }
+    return formatPrice(amount);
+  };
 
   // Helper to format date
   const formatDate = (dateStr) => {
@@ -93,11 +182,16 @@ export default function OrderConfirmation() {
 
   // Navigate to home
   const handleBackToHome = () => {
+    // Clear any session storage
+    sessionStorage.removeItem('lastOrderKey');
+    sessionStorage.removeItem('lastOrderTime');
     navigate("/home");
   };
 
   // Navigate to my reservations
   const handleViewReservations = () => {
+    sessionStorage.removeItem('lastOrderKey');
+    sessionStorage.removeItem('lastOrderTime');
     navigate("/my-reservations");
   };
 
@@ -105,6 +199,21 @@ export default function OrderConfirmation() {
     <>
       <Navbar />
       <Container className="my-5">
+        {/* Loading indicator */}
+        {creatingOrder && (
+          <Alert variant="info" className="mb-4">
+            <Spinner animation="border" size="sm" className="me-2" />
+            Processing your order... Please wait.
+          </Alert>
+        )}
+
+        {/* Error indicator */}
+        {orderError && (
+          <Alert variant="warning" className="mb-4">
+            {orderError}
+          </Alert>
+        )}
+
         {/* Success Message */}
         <div className="text-center mb-5">
           <div
@@ -161,13 +270,13 @@ export default function OrderConfirmation() {
             <Col md={8}>
               <Card className="shadow-sm">
                 <Card.Header style={{ background: "linear-gradient(90deg, #FF7E5F, #FEB47B)", color: "white", border: "none" }}>
-                  <Card.Title className="mb-0">Order Details</Card.Title>
+                  <Card.Title className="mb-0">Food Order Details</Card.Title>
                 </Card.Header>
                 <Card.Body>
                   <p><strong>Order ID:</strong> #{order.id}</p>
-                  <p><strong>Total:</strong> {formatPrice(order.total_amount || 0)}</p>
+                  <p><strong>Total:</strong> {safeFormatCurrency(order.total_amount)}</p>
                   <p><strong>Status:</strong>
-                    <span className="badge bg-warning text-dark ms-2">{order.status}</span>
+                    <span className="badge bg-warning text-dark ms-2">{order.status || 'pending'}</span>
                   </p>
                 </Card.Body>
               </Card>
@@ -187,13 +296,13 @@ export default function OrderConfirmation() {
                   {cart.map((item, idx) => (
                     <div key={idx} className="d-flex justify-content-between mb-2">
                       <span>{item.name} x {item.quantity}</span>
-                      <span>{formatPrice((item.price || 0) * (item.quantity || 0))}</span>
+                      <span>{safeFormatCurrency((item.price || 0) * (item.quantity || 0))}</span>
                     </div>
                   ))}
                   <hr />
                   <div className="d-flex justify-content-between fw-bold">
                     <span>Total:</span>
-                    <span>{formatPrice(cartTotal)}</span>
+                    <span>{safeFormatCurrency(cartTotal)}</span>
                   </div>
                 </Card.Body>
               </Card>

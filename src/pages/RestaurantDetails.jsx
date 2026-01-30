@@ -295,6 +295,7 @@ export default function RestaurantDetails() {
 
                                   const cartItemData = {
                                     id: `${id}-${item.id}`,
+                                    menuItemId: item.id,
                                     name: item.item_name,
                                     price: parseFloat(item.price),
                                     image: getMenuItemImage(item),

@@ -7,11 +7,24 @@ import { adminAPI } from "../../services/api";
 
 export default function AdminReservations() {
   const navigate = useNavigate();
-  const { clearRole } = useContext(RoleContext);
+  const { clearRole, userRole } = useContext(RoleContext);
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("");
+
+  // Redirect if not admin
+  useEffect(() => {
+    if (userRole && userRole !== 'admin') {
+      navigate("/staff/dashboard");
+    }
+  }, [userRole, navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    clearRole();
+    navigate("/admin/login");
+  };
 
   const fetchReservations = async () => {
     try {
@@ -91,20 +104,25 @@ export default function AdminReservations() {
           <Button variant="link" onClick={() => navigate("/admin/dashboard")}>
             ← Back to Dashboard
           </Button>
-          <h2>📅 All Reservations Management</h2>
+          <h2>All Reservations Management</h2>
         </div>
-        <Form.Select 
-          value={statusFilter} 
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ width: '200px' }}
-        >
-          <option value="">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="no-show">No Show</option>
-        </Form.Select>
+        <div className="d-flex gap-2">
+          <Button variant="outline-secondary" onClick={handleLogout}>
+            Logout
+          </Button>
+          <Form.Select 
+            value={statusFilter} 
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ width: '200px' }}
+          >
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="no-show">No Show</option>
+          </Form.Select>
+        </div>
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}

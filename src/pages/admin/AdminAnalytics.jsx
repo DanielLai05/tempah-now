@@ -7,7 +7,7 @@ import { adminAPI } from "../../services/api";
 
 export default function AdminAnalytics() {
   const navigate = useNavigate();
-  const { isManager, userRole, clearRole } = useContext(RoleContext);
+  const { userRole, clearRole } = useContext(RoleContext);
   const [selectedPeriod, setSelectedPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,12 +18,18 @@ export default function AdminAnalytics() {
   const [peakHours, setPeakHours] = useState([]);
   const [recentReservations, setRecentReservations] = useState([]);
 
-  // Redirect if not manager
+  // Redirect if not admin
   useEffect(() => {
-    if (userRole && !isManager) {
+    if (userRole && userRole !== 'admin') {
       navigate("/staff/dashboard");
     }
-  }, [isManager, userRole, navigate]);
+  }, [userRole, navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    clearRole();
+    navigate("/admin/login");
+  };
 
   // Fetch analytics data
   const fetchAnalytics = async () => {
@@ -116,26 +122,26 @@ export default function AdminAnalytics() {
     <Container className="py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2>📊 Analytics Dashboard</h2>
+          <Button variant="link" onClick={() => navigate("/admin/dashboard")}>
+            ← Back to Dashboard
+          </Button>
+          <h2>Analytics Dashboard</h2>
           <p className="text-muted mb-0">
             Real-time analytics from database
           </p>
         </div>
         <div className="d-flex gap-2">
-          <Form.Select
-            value={selectedPeriod}
+          <Form.Select 
+            value={selectedPeriod} 
             onChange={(e) => setSelectedPeriod(e.target.value)}
-            style={{ width: "auto" }}
+            style={{ width: '150px' }}
           >
             <option value="week">This Week</option>
             <option value="month">This Month</option>
             <option value="year">This Year</option>
           </Form.Select>
-          <Button variant="outline-primary" onClick={fetchAnalytics}>
-            🔄 Refresh
-          </Button>
-          <Button variant="secondary" onClick={() => navigate("/admin/dashboard")}>
-            ← Back
+          <Button variant="outline-secondary" onClick={handleLogout}>
+            Logout
           </Button>
         </div>
       </div>

@@ -4,8 +4,8 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 export const RoleContext = createContext();
 
 export default function RoleProvider({ children }) {
-  const [userRole, setUserRole] = useState(null); // 'manager', 'staff', or null
-  const [userRestaurantId, setUserRestaurantId] = useState(null); // Restaurant ID for staff/manager
+  const [userRole, setUserRole] = useState(null); // 'staff', 'admin' or null
+  const [userRestaurantId, setUserRestaurantId] = useState(null); // Restaurant ID for staff
 
   const setRole = (role, restaurantId = null) => {
     setUserRole(role);
@@ -24,15 +24,24 @@ export default function RoleProvider({ children }) {
     sessionStorage.removeItem('userRestaurantId');
   };
 
-  // Load role from sessionStorage on mount
+  // Load role from sessionStorage or localStorage on mount
   useEffect(() => {
     const storedRole = sessionStorage.getItem('userRole');
     const storedRestaurantId = sessionStorage.getItem('userRestaurantId');
+    const adminToken = localStorage.getItem('adminToken');
+    const staffToken = localStorage.getItem('staffToken');
+    
     if (storedRole) {
       setUserRole(storedRole);
       if (storedRestaurantId) {
         setUserRestaurantId(parseInt(storedRestaurantId));
       }
+    } else if (adminToken) {
+      // Admin token exists but role not loaded yet
+      setUserRole('admin');
+    } else if (staffToken) {
+      // Staff token exists but role not loaded yet
+      setUserRole('staff');
     }
   }, []);
 
@@ -42,11 +51,10 @@ export default function RoleProvider({ children }) {
       userRestaurantId,
       setRole,
       clearRole,
-      isManager: userRole === 'manager',
       isStaff: userRole === 'staff',
+      isAdmin: userRole === 'admin',
     }}>
       {children}
     </RoleContext.Provider>
   );
 }
-

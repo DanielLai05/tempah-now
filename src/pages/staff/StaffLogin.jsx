@@ -99,21 +99,21 @@ export default function StaffLogin() {
             <h6 className="mb-2">Demo Accounts:</h6>
             <div className="small">
               <div className="mb-2">
-                <strong>Manager:</strong><br />
-                📧 manager@sushi.com<br />
-                🔑 manager123<br />
-                🏪 Restaurant: Sushi Hana
-              </div>
-              <div className="mb-2">
-                <strong>Staff:</strong><br />
+                <strong>Staff (Sushi Palace):</strong><br />
                 📧 staff@sushi.com<br />
                 🔑 staff123<br />
-                🏪 Restaurant: Sushi Hana
+                🏪 Restaurant: Sushi Palace
+              </div>
+              <div className="mb-2">
+                <strong>Staff (Pasta Paradise):</strong><br />
+                📧 staff@pasta.com<br />
+                🔑 staff123<br />
+                🏪 Restaurant: Pasta Paradise
               </div>
               <div>
-                <strong>Manager (La Pasta):</strong><br />
-                📧 manager@pasta.com<br />
-                🔑 manager123
+                <strong>Staff (Curry House):</strong><br />
+                📧 staff@curry.com<br />
+                🔑 staff123
               </div>
             </div>
           </div>

@@ -1,7 +1,8 @@
 // AdminLogin.jsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from "react-bootstrap";
+import { RoleContext } from "../../context/RoleContext";
 import { adminAPI } from "../../services/api";
 
 export default function AdminLogin() {
@@ -10,6 +11,7 @@ export default function AdminLogin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { setRole } = useContext(RoleContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,7 +22,12 @@ export default function AdminLogin() {
       const result = await adminAPI.login(email, password);
 
       if (result.token && result.admin) {
+        // Store token
         localStorage.setItem('adminToken', result.token);
+        
+        // Set admin role in context
+        setRole('admin', null);
+        
         navigate("/admin/dashboard");
       }
     } catch (err) {
@@ -29,6 +36,11 @@ export default function AdminLogin() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    navigate("/admin/login");
   };
 
   return (
@@ -40,7 +52,7 @@ export default function AdminLogin() {
               className="text-white"
               style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
             >
-              <h4 className="mb-0">👔 Admin Login</h4>
+              <h4 className="mb-0">Admin Login</h4>
             </Card.Header>
             <Card.Body>
               {error && <Alert variant="danger">{error}</Alert>}
@@ -86,7 +98,7 @@ export default function AdminLogin() {
               <div className="mt-4 p-3 bg-light rounded">
                 <small className="text-muted">
                   <strong>Demo Admin:</strong><br />
-                  admin@system.com / admin123
+                  admin@restaurant.com / admin123
                 </small>
               </div>
             </Card.Body>
