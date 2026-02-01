@@ -1,9 +1,10 @@
 // AdminRestaurants.jsx - Restaurant Management for Admin
 import React, { useState, useEffect, useContext } from "react";
-import { Container, Row, Col, Card, Badge, Button, Modal, Form, Table, Spinner, Alert } from "react-bootstrap";
+import { Container, Row, Col, Card, Badge, Button, Table, Spinner, Alert } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { RoleContext } from "../../context/RoleContext";
 import { adminAPI } from "../../services/api";
+import { deleteImage } from "../../services/fileUpload";
 
 export default function AdminRestaurants() {
   const navigate = useNavigate();
@@ -11,17 +12,6 @@ export default function AdminRestaurants() {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [editingRestaurant, setEditingRestaurant] = useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    location: "",
-    cuisine: "",
-    description: "",
-    opening_hours: "",
-    capacity: 50,
-    is_active: true
-  });
 
   // Redirect if not admin
   useEffect(() => {
@@ -41,17 +31,6 @@ export default function AdminRestaurants() {
       setLoading(true);
       setError(null);
       const data = await adminAPI.getAllRestaurants();
-      console.log('=== RESTAURANTS DATA FROM DATABASE ===');
-      console.log('Total restaurants:', data.length);
-      data.forEach(function(r, index) {
-        console.log('[' + (index + 1) + '] ' + r.name + ':');
-        console.log('    ID: ' + r.id);
-        console.log('    is_active: ' + r.is_active);
-        console.log('    total_reservations: ' + r.total_reservations);
-        console.log('    total_orders: ' + r.total_orders);
-        console.log('    total_staff: ' + r.total_staff);
-      });
-      console.log('=======================================');
       setRestaurants(data);
     } catch (err) {
       console.error('Error fetching restaurants:', err);
@@ -70,59 +49,6 @@ export default function AdminRestaurants() {
     fetchRestaurants();
   }, []);
 
-  const handleOpenModal = (restaurant = null) => {
-    if (restaurant) {
-      setEditingRestaurant(restaurant);
-      setFormData({
-        name: restaurant.name || "",
-        location: restaurant.location || "",
-        cuisine: restaurant.cuisine || "",
-        description: restaurant.description || "",
-        opening_hours: restaurant.opening_hours || "",
-        capacity: restaurant.capacity || 50,
-        is_active: restaurant.is_active !== false
-      });
-    } else {
-      setEditingRestaurant(null);
-      setFormData({
-        name: "",
-        location: "",
-        cuisine: "",
-        description: "",
-        opening_hours: "",
-        capacity: 50,
-        is_active: true
-      });
-    }
-    setShowModal(true);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingRestaurant) {
-        await adminAPI.updateRestaurant(editingRestaurant.id, formData);
-      } else {
-        await adminAPI.createRestaurant(formData);
-      }
-      setShowModal(false);
-      fetchRestaurants();
-    } catch (err) {
-      alert('Error: ' + (err.message || "Failed to save restaurant"));
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this restaurant?')) {
-      try {
-        await adminAPI.deleteRestaurant(id);
-        fetchRestaurants();
-      } catch (err) {
-        alert('Error: ' + (err.message || "Failed to delete restaurant"));
-      }
-    }
-  };
-
   const handleToggleStatus = async (restaurant) => {
     try {
       await adminAPI.updateRestaurant(restaurant.id, {
@@ -131,6 +57,23 @@ export default function AdminRestaurants() {
       fetchRestaurants();
     } catch (err) {
       alert('Error: ' + (err.message || "Failed to update status"));
+    }
+  };
+
+  const handleDelete = async (restaurant) => {
+    if (window.confirm('Are you sure you want to delete this restaurant?')) {
+      try {
+        // First delete the image from Firebase Storage if it exists
+        if (restaurant.image_url) {
+          await deleteImage(restaurant.image_url);
+        }
+
+        // Then delete the restaurant from the database
+        await adminAPI.deleteRestaurant(restaurant.id);
+        fetchRestaurants();
+      } catch (err) {
+        alert('Error: ' + (err.message || "Failed to delete restaurant"));
+      }
     }
   };
 
@@ -157,8 +100,16 @@ export default function AdminRestaurants() {
           <Button variant="outline-secondary" onClick={handleLogout}>
             Logout
           </Button>
-          <Button variant="primary" onClick={() => handleOpenModal()}>
-            + Add New Restaurant
+          <Button
+            variant="primary"
+            onClick={() => navigate("/admin/restaurants/add")}
+            style={{
+              background: 'linear-gradient(135deg, #FF7E5F 0%, #FEB47B 100%)',
+              border: 'none'
+            }}
+          >
+            <i className="bi bi-plus-lg me-2"></i>
+            Add New Restaurant
           </Button>
         </div>
       </div>
@@ -209,6 +160,7 @@ export default function AdminRestaurants() {
               <thead>
                 <tr>
                   <th>ID</th>
+                  <th>Image</th>
                   <th>Name</th>
                   <th>Location</th>
                   <th>Cuisine</th>
@@ -222,6 +174,29 @@ export default function AdminRestaurants() {
                 {restaurants.map((r) => (
                   <tr key={r.id}>
                     <td>{r.id}</td>
+                    <td>
+                      {r.image_url ? (
+                        <img
+                          src={r.image_url}
+                          alt={r.name}
+                          style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px' }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '50px',
+                            height: '50px',
+                            borderRadius: '8px',
+                            backgroundColor: '#f0f0f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <i className="bi bi-shop text-muted"></i>
+                        </div>
+                      )}
+                    </td>
                     <td><strong>{r.name}</strong></td>
                     <td>{r.location || '-'}</td>
                     <td>{r.cuisine || '-'}</td>
@@ -248,27 +223,29 @@ export default function AdminRestaurants() {
                       </Badge>
                     </td>
                     <td>
-                      <Button 
-                        variant={r.is_active !== false ? "outline-secondary" : "outline-success"} 
-                        size="sm" 
+                      <Button
+                        variant={r.is_active !== false ? "outline-secondary" : "outline-success"}
+                        size="sm"
                         className="me-2"
                         onClick={() => handleToggleStatus(r)}
                       >
                         {r.is_active !== false ? "Disable" : "Enable"}
                       </Button>
-                      <Button 
-                        variant="outline-primary" 
-                        size="sm" 
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
                         className="me-2"
-                        onClick={() => handleOpenModal(r)}
+                        onClick={() => navigate("/admin/restaurants/edit/" + r.id, { state: { restaurant: r } })}
                       >
+                        <i className="bi bi-pencil me-1"></i>
                         Edit
                       </Button>
-                      <Button 
-                        variant="outline-danger" 
+                      <Button
+                        variant="outline-danger"
                         size="sm"
-                        onClick={() => handleDelete(r.id)}
+                        onClick={() => handleDelete(r)}
                       >
+                        <i className="bi bi-trash me-1"></i>
                         Delete
                       </Button>
                     </td>
@@ -279,110 +256,6 @@ export default function AdminRestaurants() {
           )}
         </Card.Body>
       </Card>
-
-      {/* Add/Edit Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {editingRestaurant ? "Edit Restaurant" : "Add New Restaurant"}
-          </Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Restaurant Name *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Cuisine Type</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.cuisine}
-                    onChange={(e) => setFormData({...formData, cuisine: e.target.value})}
-                    placeholder="e.g., Italian, Japanese, Chinese"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Location</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
-                    placeholder="e.g., New York, Manhattan"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Opening Hours</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.opening_hours}
-                    onChange={(e) => setFormData({...formData, opening_hours: e.target.value})}
-                    placeholder="e.g., 9:00 AM - 10:00 PM"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Capacity</Form.Label>
-                  <Form.Control
-                    type="number"
-                    value={formData.capacity}
-                    onChange={(e) => setFormData({...formData, capacity: parseInt(e.target.value)})}
-                    min="1"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Status</Form.Label>
-                  <Form.Select
-                    value={formData.is_active ? "active" : "inactive"}
-                    onChange={(e) => setFormData({...formData, is_active: e.target.value === "active"})}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-            <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="Describe your restaurant..."
-              />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              {editingRestaurant ? "Update Restaurant" : "Add Restaurant"}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
     </Container>
   );
 }

@@ -27,18 +27,21 @@ import indianImg from "../assets/restaurants/indian.png";
 
 // Get static image for restaurant
 const getRestaurantImage = (restaurant) => {
+  // If restaurant has uploaded image URL, use it
   if (restaurant.image_url) return restaurant.image_url;
-  
+
+  // Otherwise, return local images based on restaurant name
   const name = (restaurant.name || '').toLowerCase();
-  if (name.includes('sushi') || name.includes('japanese')) {
+  if (name.includes('sushi') || name.includes('japanese') || name.includes('sakura')) {
     return sushiImg;
-  } else if (name.includes('pasta') || name.includes('italian')) {
+  } else if (name.includes('pasta') || name.includes('italian') || name.includes('paradise')) {
     return pastaImg;
-  } else if (name.includes('indian') || name.includes('spice')) {
+  } else if (name.includes('indian') || name.includes('spice') || name.includes('garden') || name.includes('curry')) {
     return indianImg;
   }
-  
-  return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop&q=80';
+
+  // Default to sushi image
+  return sushiImg;
 };
 
 export default function Home() {
@@ -237,7 +240,10 @@ export default function Home() {
                 >
                   <div
                     style={{
-                      background: `url('${getRestaurantImage(restaurant)}') center/cover no-repeat`,
+                      backgroundImage: `url(${getRestaurantImage(restaurant)})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      backgroundRepeat: "no-repeat",
                       height: "180px",
                       borderTopLeftRadius: "16px",
                       borderTopRightRadius: "16px",

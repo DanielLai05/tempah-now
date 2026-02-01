@@ -25,6 +25,7 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminRestaurants from "./pages/admin/AdminRestaurants";
+import AddRestaurant from "./pages/admin/AddRestaurant";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminReservations from "./pages/admin/AdminReservations";
 import AdminStaff from "./pages/admin/AdminStaff";
@@ -103,16 +104,32 @@ export default function App() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/admin/restaurants" 
+            <Route
+              path="/admin/restaurants"
               element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminRestaurants />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/admin/orders" 
+            <Route
+              path="/admin/restaurants/add"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AddRestaurant />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/restaurants/edit/:id"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AddRestaurant />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/orders"
               element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminOrders />
