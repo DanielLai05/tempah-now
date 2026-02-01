@@ -239,6 +239,28 @@ export const staffAPI = {
 
   getStats: () =>
     fetchStaffWithAuth('/staff/stats'),
+
+  // Notifications
+  getNotifications: (unreadOnly = false) =>
+    fetchStaffWithAuth(`/staff/notifications${unreadOnly ? '?unread_only=true' : ''}`),
+
+  getNotificationCount: () =>
+    fetchStaffWithAuth('/staff/notifications/count'),
+
+  markNotificationRead: (notificationId) =>
+    fetchStaffWithAuth(`/staff/notifications/${notificationId}/read`, {
+      method: 'PUT',
+    }),
+
+  markAllNotificationsRead: () =>
+    fetchStaffWithAuth('/staff/notifications/read-all', {
+      method: 'PUT',
+    }),
+
+  deleteNotification: (notificationId) =>
+    fetchStaffWithAuth(`/staff/notifications/${notificationId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // ============ ADMIN API ============

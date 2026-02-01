@@ -1,6 +1,6 @@
 // StaffDashboard.jsx - Staff dashboard
-import React, { useContext, useState, useEffect, useCallback } from "react";
-import { Container, Row, Col, Card, Button, ListGroup, Badge, Spinner, Alert } from "react-bootstrap";
+import React, { useContext, useState, useEffect, useCallback, useRef } from "react";
+import { Container, Row, Col, Card, Button, ListGroup, Badge, Spinner, Alert, Dropdown } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { RoleContext } from "../../context/RoleContext";
 import { staffAPI, restaurantAPI } from "../../services/api";
@@ -15,6 +15,26 @@ export default function StaffDashboard() {
   const [restaurantName, setRestaurantName] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Notification states
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
+
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const [notificationsData, countData] = await Promise.all([
+        staffAPI.getNotifications(),
+        staffAPI.getNotificationCount()
+      ]);
+      setNotifications(notificationsData);
+      setUnreadCount(countData.count);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  }, []);
 
   // Fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
@@ -36,6 +56,9 @@ export default function StaffDashboard() {
       const reservationsData = await staffAPI.getReservations();
       setReservations(reservationsData);
 
+      // Fetch notifications
+      await fetchNotifications();
+
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -44,7 +67,7 @@ export default function StaffDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userRestaurantId]);
+  }, [userRestaurantId, fetchNotifications]);
 
   // Initial fetch
   useEffect(() => {
@@ -58,6 +81,98 @@ export default function StaffDashboard() {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchDashboardData]);
+
+  // Close notifications when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle mark notification as read
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await staffAPI.markNotificationRead(notificationId);
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  // Handle mark all as read
+  const handleMarkAllAsRead = async () => {
+    try {
+      await staffAPI.markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  // Handle delete notification
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      await staffAPI.deleteNotification(notificationId);
+      const notification = notifications.find(n => n.id === notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      if (notification && !notification.is_read) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  // Handle notification click
+  const handleNotificationClick = (notification) => {
+    if (!notification.is_read) {
+      handleMarkAsRead(notification.id);
+    }
+    if (notification.reservation_id) {
+      navigate('/staff/reservations');
+    }
+    setShowNotifications(false);
+  };
+
+  // Get notification icon based on type
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'reservation_new':
+        return '📅';
+      case 'cancellation_request':
+        return '❌';
+      case 'reservation_cancelled':
+        return '🚫';
+      case 'order_new':
+        return '🍽️';
+      default:
+        return '🔔';
+    }
+  };
+
+  // Format time ago
+  const formatTimeAgo = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
 
   // Count total orders across all reservations
   const totalOrdersCount = reservations.reduce((sum, r) => sum + (r.orders?.length || 0), 0);
@@ -125,7 +240,100 @@ export default function StaffDashboard() {
             )}
           </div>
         </div>
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 align-items-center">
+          {/* Notification Bell */}
+          <div ref={notificationRef} className="position-relative">
+            <Button
+              variant={unreadCount > 0 ? "warning" : "outline-secondary"}
+              size="sm"
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="position-relative"
+            >
+              🔔
+              {unreadCount > 0 && (
+                <Badge
+                  bg="danger"
+                  className="position-absolute top-0 start-100 translate-middle"
+                  style={{ fontSize: '0.7rem' }}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Badge>
+              )}
+            </Button>
+
+            {/* Notification Dropdown */}
+            {showNotifications && (
+              <Card
+                className="position-absolute end-0 mt-2 shadow"
+                style={{
+                  width: '350px',
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  zIndex: 1000,
+                  minWidth: '300px'
+                }}
+              >
+                <Card.Header className="d-flex justify-content-between align-items-center bg-white py-2">
+                  <span className="fw-bold">Notifications</span>
+                  {unreadCount > 0 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-primary p-0"
+                      onClick={handleMarkAllAsRead}
+                    >
+                      Mark all read
+                    </Button>
+                  )}
+                </Card.Header>
+                <Card.Body className="p-0">
+                  {notifications.length === 0 ? (
+                    <div className="text-center text-muted py-4">
+                      <p className="mb-0">No notifications</p>
+                    </div>
+                  ) : (
+                    <ListGroup variant="flush">
+                      {notifications.map((notification) => (
+                        <ListGroup.Item
+                          key={notification.id}
+                          className={`d-flex gap-2 py-2 px-3 ${!notification.is_read ? 'bg-warning bg-opacity-10' : ''}`}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => handleNotificationClick(notification)}
+                        >
+                          <div className="fs-5">{getNotificationIcon(notification.type)}</div>
+                          <div className="flex-grow-1">
+                            <div className="d-flex justify-content-between align-items-start">
+                              <span className="fw-semibold small">{notification.title}</span>
+                              <span className="text-muted small" style={{ fontSize: '0.7rem' }}>
+                                {formatTimeAgo(notification.created_at)}
+                              </span>
+                            </div>
+                            <p className="mb-1 small text-muted" style={{ fontSize: '0.8rem' }}>
+                              {notification.message.length > 60
+                                ? notification.message.substring(0, 60) + '...'
+                                : notification.message}
+                            </p>
+                          </div>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-muted p-0 ms-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteNotification(notification.id);
+                            }}
+                          >
+                            ×
+                          </Button>
+                        </ListGroup.Item>
+                      ))}
+                    </ListGroup>
+                  )}
+                </Card.Body>
+              </Card>
+            )}
+          </div>
+
           <Button
             variant={refreshing ? "secondary" : "outline-primary"}
             size="sm"

@@ -307,13 +307,21 @@ export default function LoginPage() {
 
             <Form.Group className='mt-3'>
               <Form.Label>Re-enter Password</Form.Label>
-              <Form.Control
-                value={signupReEnterPassword}
-                placeholder='re-enter your password here'
-                type='password'
-                onChange={(e) => setSignupReEnterPassword(e.target.value)}
-                required
-              />
+              <InputGroup>
+                <Form.Control
+                  value={signupReEnterPassword}
+                  placeholder='re-enter your password here'
+                  type={showPassword ? 'text' : 'password'}
+                  onChange={(e) => setSignupReEnterPassword(e.target.value)}
+                  required
+                />
+                <Button
+                  variant='outline-secondary'
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <i className={`bi ${showPassword ? 'bi-eye' : 'bi-eye-slash'}`}></i>
+                </Button>
+              </InputGroup>
               {error === 'unmatch-password' && (
                 <Form.Text className='text-danger'>Passwords do not match</Form.Text>
               )}

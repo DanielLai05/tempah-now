@@ -14,7 +14,14 @@ export default function MyReservations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedReservations, setExpandedReservations] = useState({});
+
+  // Cancel modal states
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawReservationId, setWithdrawReservationId] = useState(null);
+
   const [cancelReason, setCancelReason] = useState("");
   const [selectedReservationId, setSelectedReservationId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -25,9 +32,9 @@ export default function MyReservations() {
     if (currentUser === undefined) {
       return; // Still loading
     }
-    
+
     setAuthLoading(false);
-    
+
     if (!currentUser) {
       navigate("/login");
       return;
@@ -104,11 +111,11 @@ export default function MyReservations() {
     if (!dateStr) return '-';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
     } catch {
       return dateStr;
@@ -147,9 +154,14 @@ export default function MyReservations() {
     setCancelReason("");
   };
 
+  const handleConfirmCancel = () => {
+    setShowConfirmModal(false);
+    handleRequestCancellation();
+  };
+
   const handleRequestCancellation = async () => {
     if (!selectedReservationId) return;
-    
+
     try {
       setActionLoading(true);
       await reservationAPI.requestCancellation(selectedReservationId, cancelReason);
@@ -160,7 +172,8 @@ export default function MyReservations() {
         return [];
       });
       setReservations(reservationsData || []);
-      alert('Cancellation request submitted successfully!');
+      // Show success modal
+      setShowSuccessModal(true);
     } catch (err) {
       console.error('Error requesting cancellation:', err);
       alert(err.message || 'Failed to submit cancellation request');
@@ -169,24 +182,36 @@ export default function MyReservations() {
     }
   };
 
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+  };
+
   const handleWithdrawCancellation = async (reservationId) => {
-    if (!confirm('Are you sure you want to withdraw your cancellation request?')) return;
-    
+    setWithdrawReservationId(reservationId);
+    setShowWithdrawModal(true);
+  };
+
+  const handleConfirmWithdraw = async () => {
+    if (!withdrawReservationId) return;
+
     try {
       setActionLoading(true);
-      await reservationAPI.cancelRequest(reservationId);
+      await reservationAPI.cancelRequest(withdrawReservationId);
       // Refresh data
       const reservationsData = await reservationAPI.getUserReservations().catch(err => {
         console.error('Error fetching reservations:', err);
         return [];
       });
       setReservations(reservationsData || []);
-      alert('Cancellation request withdrawn!');
+      setShowWithdrawModal(false);
+      // Show success modal
+      setShowSuccessModal(true);
     } catch (err) {
       console.error('Error withdrawing cancellation:', err);
       alert(err.message || 'Failed to withdraw cancellation request');
     } finally {
       setActionLoading(false);
+      setWithdrawReservationId(null);
     }
   };
 
@@ -327,7 +352,7 @@ export default function MyReservations() {
                       {isExpanded && reservationOrders.length > 0 && (
                         <div className="mt-4 pt-3 border-top">
                           <h5 className="mb-3">🍽️ Food Orders</h5>
-                          
+
                           {reservationOrders.map((order) => (
                             <Card key={order.id} className="mb-3 bg-light">
                               <Card.Body className="py-2">
@@ -492,14 +517,14 @@ export default function MyReservations() {
         )}
       </Container>
 
-      {/* Cancellation Request Modal */}
-      <Modal show={showCancelModal} onHide={handleCloseCancelModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Request Cancellation</Modal.Title>
+      {/* Cancellation Request Modal - Step 1: Enter Reason */}
+      <Modal show={showCancelModal} onHide={handleCloseCancelModal} centered>
+        <Modal.Header closeButton style={{ borderBottom: 'none', paddingBottom: 0 }}>
+          <Modal.Title style={{ fontWeight: '600' }}>Request Cancellation</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ paddingTop: 0 }}>
+          <p className="text-muted mb-3">Please provide a reason for cancellation:</p>
           <Form.Group>
-            <Form.Label>Please provide a reason for cancellation:</Form.Label>
             <Form.Control
               as="textarea"
               rows={3}
@@ -507,24 +532,173 @@ export default function MyReservations() {
               onChange={(e) => setCancelReason(e.target.value.slice(0, 500))}
               placeholder="Enter your reason..."
               maxLength={500}
+              style={{ resize: 'none' }}
             />
-            <Form.Text className="text-muted">
+            <Form.Text className="text-muted d-flex justify-content-end">
               {cancelReason.length}/500 characters
             </Form.Text>
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseCancelModal}>
+        <Modal.Footer style={{ borderTop: 'none', paddingTop: 0 }}>
+          <Button
+            variant="outline-secondary"
+            onClick={handleCloseCancelModal}
+            style={{ borderRadius: '8px' }}
+          >
             Back
           </Button>
-          <Button 
-            variant="danger" 
-            onClick={handleRequestCancellation}
+          <Button
+            variant="danger"
+            onClick={() => setShowConfirmModal(true)}
             disabled={actionLoading}
+            style={{
+              background: 'linear-gradient(90deg, #dc3545, #c82333)',
+              border: 'none',
+              borderRadius: '8px'
+            }}
           >
             {actionLoading ? 'Submitting...' : 'Submit Request'}
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      {/* Confirmation Modal - Step 2: Confirm */}
+      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
+        <Modal.Body className="text-center py-5">
+          <div
+            style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: '#fee2e2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px'
+            }}
+          >
+            <span style={{ fontSize: '40px' }}>✕</span>
+          </div>
+          <h5 className="mb-3" style={{ fontWeight: '600' }}>
+            Are you sure you want to cancel your reservation?
+          </h5>
+          <p className="text-muted mb-4">
+            This action cannot be undone. Your cancellation request will be sent to the restaurant staff.
+          </p>
+          <div className="d-flex gap-3 justify-content-center">
+            <Button
+              variant="outline-secondary"
+              onClick={() => setShowConfirmModal(false)}
+              style={{
+                padding: '10px 40px',
+                borderRadius: '8px',
+                border: '1px solid #dee2e6'
+              }}
+            >
+              No
+            </Button>
+            <Button
+              onClick={handleConfirmCancel}
+              disabled={actionLoading}
+              style={{
+                background: 'linear-gradient(90deg, #dc3545, #c82333)',
+                border: 'none',
+                padding: '10px 40px',
+                borderRadius: '8px'
+              }}
+            >
+              {actionLoading ? 'Processing...' : 'Yes'}
+            </Button>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      {/* Success Modal - Step 3: Confirmation */}
+      <Modal show={showSuccessModal} onHide={handleCloseSuccessModal} centered>
+        <Modal.Body className="text-center py-5">
+          <div
+            style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: '#fef3c7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px'
+            }}
+          >
+            <span style={{ fontSize: '40px' }}>✓</span>
+          </div>
+          <h5 className="mb-3" style={{ fontWeight: '600' }}>
+            Cancellation Request Submitted
+          </h5>
+          <p className="text-muted mb-4">
+            Your cancellation request has been sent to the restaurant staff. They will review and process your request shortly.
+          </p>
+          <Button
+            onClick={handleCloseSuccessModal}
+            style={{
+              background: 'linear-gradient(90deg, #FF7E5F, #FEB47B)',
+              border: 'none',
+              padding: '10px 40px',
+              borderRadius: '8px'
+            }}
+          >
+            Okay
+          </Button>
+        </Modal.Body>
+      </Modal>
+
+      {/* Withdraw Confirmation Modal */}
+      <Modal show={showWithdrawModal} onHide={() => setShowWithdrawModal(false)} centered>
+        <Modal.Body className="text-center py-5">
+          <div
+            style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: '#dbeafe',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px'
+            }}
+          >
+            <span style={{ fontSize: '40px' }}>↩</span>
+          </div>
+          <h5 className="mb-3" style={{ fontWeight: '600' }}>
+            Withdraw Cancellation Request?
+          </h5>
+          <p className="text-muted mb-4">
+            Are you sure you want to withdraw your cancellation request? Your reservation will be restored to its previous status.
+          </p>
+          <div className="d-flex gap-3 justify-content-center">
+            <Button
+              variant="outline-secondary"
+              onClick={() => setShowWithdrawModal(false)}
+              style={{
+                padding: '10px 40px',
+                borderRadius: '8px',
+                border: '1px solid #dee2e6'
+              }}
+            >
+              No
+            </Button>
+            <Button
+              onClick={handleConfirmWithdraw}
+              disabled={actionLoading}
+              style={{
+                background: 'linear-gradient(90deg, #FF7E5F, #FEB47B)',
+                border: 'none',
+                padding: '10px 40px',
+                borderRadius: '8px'
+              }}
+            >
+              {actionLoading ? 'Processing...' : 'Yes'}
+            </Button>
+          </div>
+        </Modal.Body>
       </Modal>
     </>
   );

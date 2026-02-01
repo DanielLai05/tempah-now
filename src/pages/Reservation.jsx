@@ -77,8 +77,15 @@ export default function Reservation() {
       try {
         // Get restaurant from URL params or location state
         let restaurantData = location.state?.restaurant;
-        
-        if (!restaurantData) {
+
+        if (restaurantData && restaurantData.id && !restaurantData.name) {
+          // If restaurant object only has id (from cart), fetch full details
+          const restaurants = await restaurantAPI.getAll();
+          restaurantData = restaurants.find(r => r.id === parseInt(restaurantData.id));
+        }
+
+        if (!restaurantData && !location.state?.restaurant) {
+          // Try getting from URL params
           const restaurantId = searchParams.get('restaurant_id');
           if (restaurantId) {
             const restaurants = await restaurantAPI.getAll();
@@ -276,15 +283,15 @@ export default function Reservation() {
               <Card.Body>
                 <Row>
                   <Col md={4}>
-                    <Form.Group className="mb-3">
+              <Form.Group className="mb-3">
                       <Form.Label>📅 Date</Form.Label>
-                      <Form.Control
-                        type="date"
-                        min={today}
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                      />
-                    </Form.Group>
+                <Form.Control
+                  type="date"
+                  min={today}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </Form.Group>
                   </Col>
                   
                   <Col md={4}>
@@ -302,18 +309,18 @@ export default function Reservation() {
                   </Col>
                   
                   <Col md={4}>
-                    <Form.Group className="mb-3">
+              <Form.Group className="mb-3">
                       <Form.Label>🕐 Time</Form.Label>
                       <Form.Select
-                        value={time}
-                        onChange={(e) => setTime(e.target.value)}
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
                       >
                         <option value="">Select time</option>
                         {timeSlots.map(slot => (
                           <option key={slot} value={slot}>{slot}</option>
                         ))}
                       </Form.Select>
-                    </Form.Group>
+              </Form.Group>
                   </Col>
                 </Row>
               </Card.Body>
@@ -385,14 +392,14 @@ export default function Reservation() {
               </Card.Header>
               <Card.Body>
                 <Form.Group>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={specialRequests}
-                    onChange={(e) => setSpecialRequests(e.target.value)}
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={specialRequests}
+                  onChange={(e) => setSpecialRequests(e.target.value)}
                     placeholder="Any special requests? (e.g., birthday celebration, dietary restrictions, high chair needed)"
-                  />
-                </Form.Group>
+                />
+              </Form.Group>
               </Card.Body>
             </Card>
           </Col>
