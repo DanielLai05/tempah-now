@@ -19,9 +19,6 @@ export default function MyReservations() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawReservationId, setWithdrawReservationId] = useState(null);
-
   const [cancelReason, setCancelReason] = useState("");
   const [selectedReservationId, setSelectedReservationId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -192,39 +189,6 @@ export default function MyReservations() {
 
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false);
-  };
-
-  const handleWithdrawCancellation = async (reservationId) => {
-    setWithdrawReservationId(reservationId);
-    setShowWithdrawModal(true);
-  };
-
-  const handleConfirmWithdraw = async () => {
-    if (!withdrawReservationId) return;
-
-    try {
-      setActionLoading(true);
-      await reservationAPI.cancelRequest(withdrawReservationId);
-      // Refresh data
-      const reservationsData = await reservationAPI.getUserReservations().catch(err => {
-        console.error('Error fetching reservations:', err);
-        return [];
-      });
-      // Sort by newest first
-      const sortedReservations = (reservationsData || []).sort((a, b) =>
-        new Date(b.created_at) - new Date(a.created_at)
-      );
-      setReservations(sortedReservations);
-      setShowWithdrawModal(false);
-      // Show success modal
-      setShowSuccessModal(true);
-    } catch (err) {
-      console.error('Error withdrawing cancellation:', err);
-      alert(err.message || 'Failed to withdraw cancellation request');
-    } finally {
-      setActionLoading(false);
-      setWithdrawReservationId(null);
-    }
   };
 
   // Show loading while checking auth
@@ -430,17 +394,7 @@ export default function MyReservations() {
                         </Alert>
                       )}
 
-                      {/* Cancellation Requested - Show withdraw button */}
-                      {reservation.status === 'cancellation_requested' && (
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          onClick={() => handleWithdrawCancellation(reservation.id)}
-                          disabled={actionLoading}
-                        >
-                          Withdraw Cancellation Request
-                        </Button>
-                      )}
+                      {/* Cancellation Requested - No action available for customer */}
 
                       {/* Pending - Show Cancel button */}
                       {reservation.status === 'pending' && (
@@ -659,57 +613,6 @@ export default function MyReservations() {
           >
             Okay
           </Button>
-        </Modal.Body>
-      </Modal>
-
-      {/* Withdraw Confirmation Modal */}
-      <Modal show={showWithdrawModal} onHide={() => setShowWithdrawModal(false)} centered>
-        <Modal.Body className="text-center py-5">
-          <div
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              background: '#dbeafe',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 20px'
-            }}
-          >
-            <span style={{ fontSize: '40px' }}>↩</span>
-          </div>
-          <h5 className="mb-3" style={{ fontWeight: '600' }}>
-            Withdraw Cancellation Request?
-          </h5>
-          <p className="text-muted mb-4">
-            Are you sure you want to withdraw your cancellation request? Your reservation will be restored to its previous status.
-          </p>
-          <div className="d-flex gap-3 justify-content-center">
-            <Button
-              variant="outline-secondary"
-              onClick={() => setShowWithdrawModal(false)}
-              style={{
-                padding: '10px 40px',
-                borderRadius: '8px',
-                border: '1px solid #dee2e6'
-              }}
-            >
-              No
-            </Button>
-            <Button
-              onClick={handleConfirmWithdraw}
-              disabled={actionLoading}
-              style={{
-                background: 'linear-gradient(90deg, #FF7E5F, #FEB47B)',
-                border: 'none',
-                padding: '10px 40px',
-                borderRadius: '8px'
-              }}
-            >
-              {actionLoading ? 'Processing...' : 'Yes'}
-            </Button>
-          </div>
         </Modal.Body>
       </Modal>
     </>

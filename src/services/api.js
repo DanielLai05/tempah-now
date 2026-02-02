@@ -119,12 +119,6 @@ export const reservationAPI = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
-
-  // Withdraw cancellation request
-  cancelRequest: (id) =>
-    fetchWithAuth(`/reservations/${id}/cancel-request`, {
-      method: 'POST',
-    }),
 };
 
 // ============ NOTIFICATION API ============
