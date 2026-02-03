@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router';
 import { AuthContext } from '../context';
 import { Col, Container, Row, Form, Button, Modal, InputGroup, Alert, Spinner } from 'react-bootstrap';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { authAPI } from '../services/api';
 
@@ -20,6 +20,12 @@ export default function LoginPage() {
   const [modalShow, setModalShow] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
+  // Forgot password states
+  const [forgotPasswordShow, setForgotPasswordShow] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+  const [forgotPasswordError, setForgotPasswordError] = useState('');
   const { currentUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -141,6 +147,42 @@ export default function LoginPage() {
     }
   }
 
+  // Handle forgot password
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotPasswordLoading(true);
+    setForgotPasswordError('');
+    setForgotPasswordMessage('');
+
+    try {
+      await sendPasswordResetEmail(auth, forgotPasswordEmail);
+      setForgotPasswordMessage('Password reset email sent! Check your inbox.');
+      setTimeout(() => {
+        setForgotPasswordShow(false);
+        setForgotPasswordEmail('');
+        setForgotPasswordMessage('');
+      }, 3000);
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      if (error.code === 'auth/user-not-found') {
+        setForgotPasswordError('No account found with this email address.');
+      } else if (error.code === 'auth/invalid-email') {
+        setForgotPasswordError('Please enter a valid email address.');
+      } else {
+        setForgotPasswordError('Failed to send reset email. Please try again.');
+      }
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  }
+
+  const handleCloseForgotPassword = () => {
+    setForgotPasswordShow(false);
+    setForgotPasswordEmail('');
+    setForgotPasswordMessage('');
+    setForgotPasswordError('');
+  }
+
   return (
     <Container fluid className="vh-100">
       <Row className="h-100">
@@ -205,7 +247,18 @@ export default function LoginPage() {
                 )}
               </Button>
             </Form>
-            
+
+            <div className='mt-3 text-end'>
+              <Button
+                variant='link'
+                className='p-0 text-decoration-none'
+                onClick={() => setForgotPasswordShow(true)}
+                style={{ color: '#FF7E5F', fontSize: '0.9rem' }}
+              >
+                Forgot Password?
+              </Button>
+            </div>
+
             <div className='my-3 d-flex align-items-center'>
               <span>Not registered?</span>
               <Button
@@ -341,6 +394,58 @@ export default function LoginPage() {
                 </>
               ) : (
                 'Sign Up'
+              )}
+            </Button>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
+      {/* Forgot Password Modal */}
+      <Modal show={forgotPasswordShow} onHide={handleCloseForgotPassword} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Reset Password</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {forgotPasswordMessage && (
+            <Alert variant="success">
+              {forgotPasswordMessage}
+            </Alert>
+          )}
+          {forgotPasswordError && (
+            <Alert variant="danger">
+              {forgotPasswordError}
+            </Alert>
+          )}
+          {!forgotPasswordMessage && (
+            <p className="text-muted mb-3">
+              Enter your email address and we'll send you a link to reset your password.
+            </p>
+          )}
+          <Form onSubmit={handleForgotPassword}>
+            <Form.Group>
+              <Form.Label>Email Address</Form.Label>
+              <Form.Control
+                type="email"
+                value={forgotPasswordEmail}
+                placeholder="Enter your email"
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                required
+              />
+            </Form.Group>
+            <Button
+              variant="primary"
+              type="submit"
+              className="w-100 mt-4 py-2"
+              disabled={forgotPasswordLoading}
+              style={{ background: "linear-gradient(90deg, #FF7E5F, #FEB47B)", border: "none" }}
+            >
+              {forgotPasswordLoading ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                  <span className="ms-2">Sending...</span>
+                </>
+              ) : (
+                'Send Reset Link'
               )}
             </Button>
           </Form>
