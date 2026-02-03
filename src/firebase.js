@@ -15,6 +15,13 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_APP_ID
 };
 
+// Action code settings for password reset
+// This defines where users will be redirected after clicking reset links
+export const actionCodeSettings = {
+  url: import.meta.env.VITE_RESET_PASSWORD_URL || 'http://localhost:5173/reset-password',
+  handleCodeInApp: true,
+};
+
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

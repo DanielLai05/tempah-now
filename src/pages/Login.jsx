@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { AuthContext } from '../context';
 import { Col, Container, Row, Form, Button, Modal, InputGroup, Alert, Spinner } from 'react-bootstrap';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth, actionCodeSettings } from '../firebase';
 import { authAPI } from '../services/api';
 
 export default function LoginPage() {
@@ -155,7 +155,12 @@ export default function LoginPage() {
     setForgotPasswordMessage('');
 
     try {
-      await sendPasswordResetEmail(auth, forgotPasswordEmail);
+      // Debug log to check the action code settings
+      console.log('Sending password reset to:', forgotPasswordEmail);
+      console.log('Action code settings:', actionCodeSettings);
+      
+      // Send password reset email with custom continue URL
+      await sendPasswordResetEmail(auth, forgotPasswordEmail, actionCodeSettings);
       setForgotPasswordMessage('Password reset email sent! Check your inbox.');
       setTimeout(() => {
         setForgotPasswordShow(false);

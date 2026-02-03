@@ -1,6 +1,7 @@
 // App.jsx
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/Login";
+import ResetPasswordPage from "./pages/ResetPassword";
 import AuthProvider from "./components/AuthProvider";
 import AppProvider from "./context/AppContext.jsx";
 import RoleProvider from "./context/RoleContext.jsx";
@@ -44,6 +45,7 @@ export default function App() {
           <Routes>
             {/* Customer Pages */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/home" element={<Home />} />
             <Route path="/restaurant-details/:id" element={<RestaurantDetails />} />
             <Route path="/cart" element={<ShoppingCart />} />
