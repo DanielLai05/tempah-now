@@ -1,0 +1,51 @@
+/* Custom Modal Styles */
+.delete-modal .modal-content {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.delete-modal .modal-header {
+  padding: 1.5rem 1.5rem 0.5rem;
+}
+
+.delete-modal .modal-body {
+  padding: 0.5rem 1.5rem 1.5rem;
+}
+
+.delete-modal .modal-title {
+  font-weight: 600;
+  color: #333;
+}
+
+/* Smooth animations for modal */
+.delete-modal.fade .modal-dialog {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.delete-modal.fade.show .modal-dialog {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Button hover effects */
+.delete-modal .btn {
+  transition: all 0.2s ease;
+}
+
+.delete-modal .btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.delete-modal .btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Warning alert styling */
+.delete-modal .alert-warning {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+  border: 1px solid #ffc107;
+  color: #856404;
+  border-radius: 10px;
+}

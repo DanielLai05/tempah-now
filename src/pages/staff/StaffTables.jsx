@@ -23,6 +23,9 @@ const StaffTables = () => {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTable, setEditingTable] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [tableToDelete, setTableToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Form state
   const [tableNumber, setTableNumber] = useState('')
@@ -75,17 +78,31 @@ const StaffTables = () => {
   }
 
   const handleDeleteTable = async (table) => {
-    if (!window.confirm(`Are you sure you want to delete Table ${table.table_number}?`)) {
-      return
-    }
+    setTableToDelete(table)
+    setShowDeleteModal(true)
+  }
 
+  const confirmDeleteTable = async () => {
+    if (!tableToDelete) return
+
+    setDeleting(true)
     try {
-      await staffAPI.deleteTable(table.id)
+      await staffAPI.deleteTable(tableToDelete.id)
       fetchTables()
+      setShowDeleteModal(false)
+      setTableToDelete(null)
     } catch (err) {
       console.error('Error deleting table:', err)
-      alert(err.message || 'Failed to delete table')
+      setError(err.message || 'Failed to delete table')
+      setShowDeleteModal(false)
+    } finally {
+      setDeleting(false)
     }
+  }
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false)
+    setTableToDelete(null)
   }
 
   const handleEditTable = (table) => {
@@ -305,6 +322,93 @@ const StaffTables = () => {
               </Button>
             </div>
           </Form>
+        </Modal.Body>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        show={showDeleteModal}
+        onHide={closeDeleteModal}
+        centered
+        className="delete-modal"
+      >
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="d-flex align-items-center gap-2">
+            <div
+              className="d-flex align-items-center justify-content-center rounded-circle"
+              style={{
+                width: '40px',
+                height: '40px',
+                background: 'linear-gradient(135deg, #FF7E5F 0%, #FEB47B 100%)'
+              }}
+            >
+              <i className="bi bi-exclamation-triangle-fill text-white" style={{ fontSize: '1.2rem' }}></i>
+            </div>
+            <span>Delete Table</span>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-2">
+          <p className="text-muted mb-4">
+            Are you sure you want to delete this table? This action cannot be undone.
+          </p>
+
+          {tableToDelete && (
+            <div
+              className="rounded-3 p-3 mb-4"
+              style={{ background: 'linear-gradient(135deg, #fff5f5 0%, #fff0e6 100%)', border: '1px solid #ffddd0' }}
+            >
+              <div className="d-flex align-items-center gap-3">
+                <div>
+                  <h6 className="mb-1 fw-semibold">Table {tableToDelete.table_number}</h6>
+                  <div className="d-flex gap-3 text-muted small">
+                    <span><i className="bi bi-people me-1"></i>{tableToDelete.capacity} seats</span>
+                    {tableToDelete.location && (
+                      <span><i className="bi bi-geo-alt me-1"></i>{tableToDelete.location}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="alert alert-warning d-flex align-items-start gap-2 mb-4">
+            <i className="bi bi-info-circle-fill mt-1"></i>
+            <small>
+              <strong>Warning:</strong> Any existing reservations for this table will be affected and may need to be reassigned.
+            </small>
+          </div>
+
+          <div className="d-flex justify-content-end gap-2">
+            <Button
+              variant="outline-secondary"
+              onClick={closeDeleteModal}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmDeleteTable}
+              disabled={deleting}
+              className="d-flex align-items-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+                border: 'none'
+              }}
+            >
+              {deleting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-trash-fill"></i>
+                  Delete Table
+                </>
+              )}
+            </Button>
+          </div>
         </Modal.Body>
       </Modal>
     </Container>
