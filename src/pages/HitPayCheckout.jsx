@@ -1,11 +1,11 @@
 // HitPayCheckout.jsx - HitPay payment integration
-import React, { useState, useEffect, useContext } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Alert, Spinner } from 'react-bootstrap';
 import Navbar from '../components/Navbar';
 import { formatPrice } from '../utils/formatters';
 import { AppContext } from '../context/AppContext';
-import { orderAPI, paymentAPI } from '../services/api';
+import { orderAPI, paymentAPI, authAPI } from '../services/api';
 
 export default function HitPayCheckout() {
   const location = useLocation();
@@ -51,6 +51,9 @@ export default function HitPayCheckout() {
         throw new Error('Please login to continue');
       }
 
+      // Get user profile for customer info
+      const userProfile = await authAPI.getProfile();
+
       // Check sessionStorage for existing order (prevent duplicates on refresh)
       const cartKey = cartItems.map(item => `${item.menuItemId || item.id}-${item.quantity}`).join(',');
       const lastOrderKey = sessionStorage.getItem('lastOrderKey');
@@ -82,98 +85,52 @@ export default function HitPayCheckout() {
       sessionStorage.setItem('lastOrderKey', cartKey);
       sessionStorage.setItem('lastOrderTime', now.toString());
 
-      // For demo purposes, simulate HitPay payment
-      // In production, you would integrate with actual HitPay API
-      const paymentId = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Simulate payment link (replace with actual HitPay integration)
-      const mockPaymentUrl = `https://sandbox.hitpay.com/pay/${paymentId}`;
-      
-      setPaymentUrl(mockPaymentUrl);
-      
+      // Create HitPay payment
+      const paymentResult = await paymentAPI.createHitPayPayment({
+        order_id: orderResult.order.id,
+        amount: totalAmount,
+        customer_name: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim(),
+        customer_email: userProfile.email,
+        description: `Order at ${restaurant?.name || 'Restaurant'}`,
+        reference_number: `ORD-${orderResult.order.id}-${Date.now()}`
+      });
+
       // Store payment info
       sessionStorage.setItem('paymentInfo', JSON.stringify({
-        paymentId,
-        paymentUrl: mockPaymentUrl,
+        payment_id: paymentResult.payment_id,
+        paymentUrl: paymentResult.payment_url,
         reservation,
         cart: cartItems,
         restaurant,
-        customer,
+        customer: userProfile,
         subtotal: totalAmount,
         order: orderResult.order,
-        paymentMethod: 'gateway',
+        paymentMethod: 'hitpay',
         paymentStatus: 'pending'
       }));
+
+      // Set payment URL for redirect
+      setPaymentUrl(paymentResult.payment_url);
 
     } catch (err) {
       console.error('Payment error:', err);
       setError(err.message || 'Failed to create payment. Please try again.');
+      orderCreated.current = false; // Reset to allow retry
       console.error('Full error details:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle "I've completed payment" button
-  const handlePaymentComplete = async () => {
-    try {
-      // Save payment record to database
-      if (order && order.id) {
-        await paymentAPI.create({
-          order_id: order.id,
-          amount: totalAmount,
-          payment_method: 'online',
-          payment_status: 'completed',
-          transaction_id: `TXN-${Date.now()}`,
-          notes: `Payment for order at ${restaurant?.name || 'Restaurant'}`
-        });
-      }
-
-      const paymentInfoStr = sessionStorage.getItem('paymentInfo');
-      if (paymentInfoStr) {
-        const paymentInfo = JSON.parse(paymentInfoStr);
-        
-        // Navigate to confirmation
-        clearCart();
-        navigate("/order-confirmation", {
-          state: {
-            ...paymentInfo,
-            paymentStatus: 'completed',
-            message: 'Payment successful! Your order has been confirmed.'
-          }
-        });
-      } else {
-        // Fallback if no payment info
-        navigate("/order-confirmation", {
-          state: {
-            reservation,
-            cart: cartItems,
-            restaurant,
-            customer,
-            order,
-            subtotal: totalAmount,
-            paymentMethod: 'gateway',
-            paymentStatus: 'completed',
-            message: 'Your order has been confirmed!'
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error saving payment:', error);
-      // Still navigate to confirmation even if payment record fails
-      navigate("/order-confirmation", {
-        state: {
-          reservation,
-          cart: cartItems,
-          restaurant,
-          customer,
-          order,
-          subtotal: totalAmount,
-          paymentMethod: 'gateway',
-          paymentStatus: 'completed',
-          message: 'Your order has been confirmed!'
-        }
-      });
+  // Redirect to HitPay payment page
+  const handleRedirectToPayment = () => {
+    if (paymentUrl) {
+      // Clear session storage for fresh payment on return
+      sessionStorage.removeItem('lastOrderKey');
+      sessionStorage.removeItem('lastOrderTime');
+      
+      // Redirect to HitPay
+      window.location.href = paymentUrl;
     }
   };
 
@@ -227,40 +184,27 @@ export default function HitPayCheckout() {
                 {/* Payment Link Created */}
                 {paymentUrl ? (
                   <Alert variant="success">
-                    <Alert.Heading>Payment Link Created!</Alert.Heading>
+                    <Alert.Heading>Payment Ready!</Alert.Heading>
                     <p className="mb-3">
-                      Your payment of <strong>{formatPrice(totalAmount)}</strong> is ready.
+                      Your payment of <strong>{formatPrice(totalAmount)}</strong> is ready. You will be redirected to HitPay secure payment page.
                     </p>
                     
                     <Button
                       variant="success"
                       size="lg"
                       className="w-100 mb-3"
-                      href={paymentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      onClick={handleRedirectToPayment}
                     >
-                      Pay Now - {formatPrice(totalAmount)}
+                      Proceed to Payment - {formatPrice(totalAmount)}
                     </Button>
-                    
-                    <div className="text-center">
-                      <Button 
-                        variant="outline-success" 
-                        onClick={handlePaymentComplete}
-                        size="lg"
-                      >
-                        I've Completed Payment
-                      </Button>
-                    </div>
                     
                     <hr />
                     <small className="text-muted d-block mt-2">
-                      <strong>Instructions:</strong>
-                      <ol className="mb-0 mt-2">
-                        <li>Click "Pay Now" to open the payment page</li>
-                        <li>Complete your payment securely</li>
-                        <li>Return here and click "I've Completed Payment"</li>
-                      </ol>
+                      <strong>Payment Methods Available:</strong>
+                      <ul className="mb-0 mt-2">
+                        <li>Credit/Debit Cards (Visa, Mastercard)</li>
+                        <li>FPX (Online Banking)</li>
+                      </ul>
                     </small>
                   </Alert>
                 ) : (

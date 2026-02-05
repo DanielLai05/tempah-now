@@ -77,6 +77,29 @@ export default function StaffOrders() {
     return <Badge bg={variants[status] || 'secondary'}>{status}</Badge>;
   };
 
+  const getPaymentStatusBadge = (status) => {
+    const variants = {
+      paid: 'success',
+      unpaid: 'warning',
+      refunded: 'info'
+    };
+    return <Badge bg={variants[status] || 'warning'}>{status || 'Pay at Counter'}</Badge>;
+  };
+
+  const getPaymentMethodBadge = (method) => {
+    if (!method) {
+      return <Badge bg="secondary">Unknown</Badge>;
+    }
+    const methodColors = {
+      hitpay: 'primary',
+      cash: 'success',
+      online: 'info',
+      card: 'primary',
+      fpx: 'warning'
+    };
+    return <Badge bg={methodColors[method.toLowerCase()] || 'secondary'}>{method}</Badge>;
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     try {
@@ -273,6 +296,8 @@ export default function StaffOrders() {
               <th>Items</th>
               <th>Total</th>
               <th>Status</th>
+              <th>Payment</th>
+              <th>Method</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -295,6 +320,8 @@ export default function StaffOrders() {
                 </td>
                 <td className="fw-semibold">${order.total_amount?.toFixed(2) || '0.00'}</td>
                 <td>{getStatusBadge(order.status)}</td>
+                <td>{getPaymentStatusBadge(order.payment_status)}</td>
+                <td>{getPaymentMethodBadge(order.payment_method)}</td>
                 <td>
                   {order.status === 'pending' && (
                     <Button 

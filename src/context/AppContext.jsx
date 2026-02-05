@@ -1,5 +1,5 @@
 // src/context/AppContext.jsx
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useCallback } from "react";
 
 export const AppContext = createContext();
 
@@ -18,19 +18,19 @@ export default function AppProvider({ children }) {
     });
   };
 
-  const removeFromCart = (itemId) => {
+  const removeFromCart = useCallback((itemId) => {
     setCart(prev => prev.filter(i => i.id !== itemId));
-  };
+  }, []);
 
-  const updateCartQuantity = (itemId, newQuantity) => {
+  const updateCartQuantity = useCallback((itemId, newQuantity) => {
     if (newQuantity <= 0) {
       removeFromCart(itemId);
       return;
     }
     setCart(prev => prev.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i));
-  };
+  }, [removeFromCart]);
 
-  const clearCart = () => setCart([]);
+  const clearCart = useCallback(() => setCart([]), []);
 
   return (
     <AppContext.Provider value={{

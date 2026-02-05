@@ -108,6 +108,19 @@ export default function MyReservations() {
     }
   };
 
+  const getPaymentStatusBadge = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid':
+        return <Badge bg="success">✓ Paid</Badge>;
+      case 'unpaid':
+        return <Badge bg="warning" text="dark">Pay at Counter</Badge>;
+      case 'refunded':
+        return <Badge bg="info">Refunded</Badge>;
+      default:
+        return <Badge bg="warning" text="dark">Pay at Counter</Badge>;
+    }
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     try {
@@ -273,9 +286,18 @@ export default function MyReservations() {
                         </span>
                         {getStatusBadge(reservation.status)}
                         {reservationOrders.length > 0 && (
-                          <Badge bg="info" className="ms-2">
-                            {reservationOrders.length} Food Order(s) • {formatCurrency(totalOrderAmount)}
-                          </Badge>
+                          <>
+                            <Badge bg="info" className="ms-2">
+                              {reservationOrders.length} Food Order(s) • {formatCurrency(totalOrderAmount)}
+                            </Badge>
+                            {/* Show payment status for orders */}
+                            {reservationOrders.some(o => o.payment_status === 'paid') && (
+                              <Badge bg="success" className="ms-1">✓ Paid</Badge>
+                            )}
+                            {reservationOrders.some(o => o.payment_status === 'unpaid') && !reservationOrders.every(o => o.payment_status === 'paid') && (
+                              <Badge bg="warning" text="dark" className="ms-1">Pay at Counter</Badge>
+                            )}
+                          </>
                         )}
                       </div>
                       {reservationOrders.length > 0 && (
@@ -337,6 +359,9 @@ export default function MyReservations() {
                                     <strong>Order #{order.id}</strong>
                                     <span className="ms-2">
                                       {getStatusBadge(order.status)}
+                                    </span>
+                                    <span className="ms-2">
+                                      {getPaymentStatusBadge(order.payment_status)}
                                     </span>
                                   </div>
                                   <span className="fw-bold">
@@ -443,6 +468,7 @@ export default function MyReservations() {
                       <th>Items</th>
                       <th>Total</th>
                       <th>Status</th>
+                      <th>Payment</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -473,6 +499,7 @@ export default function MyReservations() {
                           </td>
                           <td className="fw-bold">{formatCurrency(parseFloat(order.total_amount) || 0)}</td>
                           <td>{getStatusBadge(order.status)}</td>
+                          <td>{getPaymentStatusBadge(order.payment_status)}</td>
                         </tr>
                       ))}
                   </tbody>

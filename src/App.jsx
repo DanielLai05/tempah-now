@@ -7,6 +7,7 @@ import AppProvider from "./context/AppContext.jsx";
 import RoleProvider from "./context/RoleContext.jsx";
 import Home from "./pages/Home";
 import HitPayCheckout from "./pages/HitPayCheckout";
+import PaymentSuccess from "./pages/PaymentSuccess";
 import RestaurantDetails from "./pages/RestaurantDetails";
 import ShoppingCart from "./pages/ShoppingCart";
 import Reservation from "./pages/Reservation";
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/payment-method" element={<PaymentMethod />} />
             <Route path="/payment" element={<HitPayCheckout />} />
             <Route path="/order-confirmation" element={<OrderConfirmation />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/my-reservations" element={<MyReservations />} />
 
             {/* Staff Portal */}

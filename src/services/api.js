@@ -450,4 +450,15 @@ export const paymentAPI = {
     }),
 
   getUserPayments: () => fetchWithAuth('/payments'),
+
+  // HitPay payment integration
+  createHitPayPayment: (paymentData) =>
+    fetchWithAuth('/payments/hitpay/create', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    }),
+
+  // Check HitPay payment status
+  checkHitPayStatus: (paymentId) =>
+    fetchWithAuth(`/payments/hitpay/status/${paymentId}`),
 };

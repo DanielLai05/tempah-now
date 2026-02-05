@@ -84,6 +84,29 @@ export default function AdminOrders() {
     return <Badge bg={variants[status] || 'secondary'}>{status}</Badge>;
   };
 
+  const getPaymentStatusBadge = (status) => {
+    const variants = {
+      paid: 'success',
+      unpaid: 'warning',
+      refunded: 'info'
+    };
+    return <Badge bg={variants[status] || 'warning'}>{status || 'Pay at Counter'}</Badge>;
+  };
+
+  const getPaymentMethodBadge = (method) => {
+    if (!method) {
+      return <Badge bg="secondary">Unknown</Badge>;
+    }
+    const methodColors = {
+      hitpay: 'primary',
+      cash: 'success',
+      online: 'info',
+      card: 'primary',
+      fpx: 'warning'
+    };
+    return <Badge bg={methodColors[method.toLowerCase()] || 'secondary'}>{method}</Badge>;
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       pending: '#ffc107',
@@ -195,6 +218,8 @@ export default function AdminOrders() {
                   <th>Restaurant</th>
                   <th>Amount</th>
                   <th>Status</th>
+                  <th>Payment</th>
+                  <th>Method</th>
                   <th>Date</th>
                 </tr>
               </thead>
@@ -206,6 +231,8 @@ export default function AdminOrders() {
                     <td>{o.restaurant_name || 'Unknown'}</td>
                     <td>{formatCurrency(o.total_amount)}</td>
                     <td>{getStatusBadge(o.status)}</td>
+                    <td>{getPaymentStatusBadge(o.payment_status)}</td>
+                    <td>{getPaymentMethodBadge(o.payment_method)}</td>
                     <td><small>{formatDate(o.created_at)}</small></td>
                   </tr>
                 ))}
