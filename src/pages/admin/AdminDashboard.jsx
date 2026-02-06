@@ -166,7 +166,7 @@ export default function AdminDashboard() {
           </Card>
         </Col>
         <Col md={4}>
-          <Card className="text-center shadow h-100" style={{ border: '2px solid #007bff' }}>
+          <Card className="text-center shadow h-100">
             <Card.Body className="d-flex flex-column justify-content-center">
               <Card.Title className="mt-3">Analytics</Card.Title>
               <p className="text-muted">View detailed reports</p>
@@ -183,7 +183,7 @@ export default function AdminDashboard() {
       </Row>
 
       <Row className="my-4 g-4">
-        <Col md={6}>
+        <Col md={12}>
           <Card className="text-center shadow h-100">
             <Card.Body className="d-flex flex-column justify-content-center">
               <Card.Title className="mt-3">Staff Management</Card.Title>
