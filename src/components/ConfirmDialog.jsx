@@ -1,20 +1,27 @@
 // Custom confirmation dialog component
 import React from "react";
-import { Modal, Button } from "react-bootstrap";
+import { Modal, Button, Spinner } from "react-bootstrap";
 
-export const ConfirmDialog = ({ show, onConfirm, onCancel, title, message, confirmText = "Confirm", cancelText = "Cancel", variant = "primary" }) => {
+export const ConfirmDialog = ({ show, onConfirm, onCancel, title, message, confirmText = "Confirm", cancelText = "Cancel", variant = "primary", loading = false }) => {
   return (
     <Modal show={show} onHide={onCancel} centered>
-      <Modal.Header closeButton>
+      <Modal.Header closeButton={!loading}>
         <Modal.Title>{title || "Confirm Action"}</Modal.Title>
       </Modal.Header>
       <Modal.Body>{message}</Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel} disabled={loading}>
           {cancelText}
         </Button>
-        <Button variant={variant} onClick={onConfirm}>
-          {confirmText}
+        <Button variant={variant} onClick={onConfirm} disabled={loading}>
+          {loading ? (
+            <>
+              <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+              <span className="ms-2">Deleting...</span>
+            </>
+          ) : (
+            confirmText
+          )}
         </Button>
       </Modal.Footer>
     </Modal>
