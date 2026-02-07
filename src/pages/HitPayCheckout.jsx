@@ -86,14 +86,21 @@ export default function HitPayCheckout() {
       sessionStorage.setItem('lastOrderTime', now.toString());
 
       // Create HitPay payment
-      const paymentResult = await paymentAPI.createHitPayPayment({
+      const itemDescription = cartItems.length > 0 
+        ? cartItems.map(item => `${item.name} x${item.quantity}`).join(', ')
+        : 'Food Order';
+      
+      const paymentPayload = {
         order_id: orderResult.order.id,
         amount: totalAmount,
         customer_name: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim(),
         customer_email: userProfile.email,
-        description: `${restaurant?.name || 'Restaurant'} - ${cartItems.map(item => `${item.name} x${item.quantity}`).join(', ')}`,
+        description: `${restaurant?.name || 'Restaurant'} - ${itemDescription}`,
         reference_number: `ORD-${orderResult.order.id}-${Date.now()}`
-      });
+      };
+      
+      console.log('Sending payment to HitPay:', paymentPayload);
+      const paymentResult = await paymentAPI.createHitPayPayment(paymentPayload);
 
       // Store payment info
       sessionStorage.setItem('paymentInfo', JSON.stringify({
